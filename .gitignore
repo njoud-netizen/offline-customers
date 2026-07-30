@@ -1,0 +1,7 @@
+credentials/*.json
+db/*.sqlite3
+output/*.xlsx
+__pycache__/
+*.pyc
+.env
+streamlit_log.txt
