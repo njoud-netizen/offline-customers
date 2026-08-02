@@ -14,7 +14,7 @@ from .db import DedupStore
 from .invoices import extract_invoice_records, load_invoice_file
 from .matcher import build_contacts_index, build_exclusion_set, classify_invoice_record
 from .report import write_reports
-from .sheets import GoogleSheetsConnectionError, get_contacts_cached
+from .sheets import GoogleSheetsConnectionError, get_contacts_cached, google_secrets_info
 
 
 @dataclass
@@ -73,7 +73,7 @@ def run_pipeline(
              f"{len(new_records)} صف جديد فعليًا. (استغرق {timings['فحص قاعدة dedup']:.2f} ثانية)")
 
     creds_path = credentials_path(cfg)
-    if not creds_path.exists():
+    if google_secrets_info() is None and not creds_path.exists():
         if store:
             store.close()
         raise GoogleSheetsConnectionError(

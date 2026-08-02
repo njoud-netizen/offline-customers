@@ -47,8 +47,24 @@ class ContactRecord:
     show_room: str
 
 
+def google_secrets_info() -> dict | None:
+    """يرجع بيانات اعتماد Google من Streamlit Secrets (المفتاح gcp_service_account) إن كنا
+    منشورين على Streamlit Cloud، وإلا None — عندها يُقرأ الملف الفعلي كما بالتشغيل المحلي."""
+    try:
+        import streamlit as st
+        if "gcp_service_account" in st.secrets:
+            return dict(st.secrets["gcp_service_account"])
+    except Exception:
+        pass
+    return None
+
+
 def get_client(credentials_path: str) -> gspread.Client:
-    creds = Credentials.from_service_account_file(str(credentials_path), scopes=SCOPES)
+    secrets_info = google_secrets_info()
+    if secrets_info is not None:
+        creds = Credentials.from_service_account_info(secrets_info, scopes=SCOPES)
+    else:
+        creds = Credentials.from_service_account_file(str(credentials_path), scopes=SCOPES)
     return gspread.authorize(creds)
 
 
