@@ -20,21 +20,20 @@ from src.translations import t
 
 from .empty_state import render_empty_state
 from .header import render_footer, render_page_header, render_results_header
-from .inbound_table import compute_filtered, render_filter_toolbar, render_table_body
+from .inbound_table import (
+    compute_filtered,
+    get_company_options,
+    phone_search_summary,
+    render_filter_toolbar,
+    render_table_body,
+)
 from .kpi_card import KPICardData, render_kpi_row
 from .phone_format import format_phone_display
 from .step_indicator import render_step_indicator
 
 
-def _format_unique_sub(count: int, lang: str) -> str:
-    """صيغة جمع عربية صحيحة حسب العدد: صفر/واحد/اثنين/جمع (٣ فأكثر)."""
-    if count == 0:
-        return t("inbound_kpi_unique_sub_zero", lang)
-    if count == 1:
-        return t("inbound_kpi_unique_sub_one", lang)
-    if count == 2:
-        return t("inbound_kpi_unique_sub_two", lang)
-    return t("inbound_kpi_unique_sub_plural", lang).format(count=count)
+def _icon_tile(name: str) -> str:
+    return f'<span class="maz-kpi-icon-tile"><span class="material-symbols-outlined">{name}</span></span>'
 
 
 def _top_value_insight(series: pd.Series) -> tuple[str, int, float]:
@@ -49,29 +48,41 @@ def _top_value_insight(series: pd.Series) -> tuple[str, int, float]:
     return str(top_value), top_count, pct
 
 
-def _render_insight_cards(filtered_df: pd.DataFrame, lang: str) -> None:
-    with st.container(key="maz_card_insights_row"):
+def _render_insight_cards(filtered_df: pd.DataFrame, lang: str, selected_company: str, total_rows_count: int) -> None:
+    with st.container(key="maz_insights_row_wrap"):
         st.markdown(f'<p class="maz-card-title" style="margin:4px 0 12px 0;">{t("inbound_insights_title", lang)}</p>', unsafe_allow_html=True)
         col1, col2, col3 = st.columns(3)
 
-        # ==== أكثر شركة ====
+        # ==== أكثر شركة / حصة الشركة (لما تكون شركة واحدة مختارة من فلتر الهيدر) ====
         with col1:
-            company, count, pct = _top_value_insight(filtered_df.get("company", pd.Series(dtype=str)))
-            meta = (
-                f'{t("inbound_insight_call_count", lang).format(count=count)} · {t("inbound_insight_of_total", lang).format(pct=f"{pct:.0f}")}'
-                if company else ""
-            )
+            if selected_company:
+                company_count = len(filtered_df)
+                pct_of_grand_total = (company_count / total_rows_count * 100) if total_rows_count else 0.0
+                label = t("inbound_insight_company_share", lang)
+                value_display = selected_company
+                meta = (
+                    f'{t("inbound_insight_call_count", lang).format(count=company_count)} · '
+                    f'{t("inbound_insight_of_total", lang).format(pct=f"{pct_of_grand_total:.0f}")}'
+                )
+            else:
+                company, count, pct = _top_value_insight(filtered_df.get("company", pd.Series(dtype=str)))
+                label = t("inbound_insight_top_company", lang)
+                value_display = company or "—"
+                meta = (
+                    f'{t("inbound_insight_call_count", lang).format(count=count)} · {t("inbound_insight_of_total", lang).format(pct=f"{pct:.0f}")}'
+                    if company else ""
+                )
             st.markdown(
                 f'<div class="maz-insight-card">'
                 f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">business</span></div>'
-                f'<div class="maz-insight-label">{t("inbound_insight_top_company", lang)}</div>'
-                f'<div class="maz-insight-value">{company or "—"}</div>'
+                f'<div class="maz-insight-label">{label}</div>'
+                f'<div class="maz-insight-value">{value_display}</div>'
                 f'<div class="maz-insight-meta">{meta}</div>'
                 f"</div>",
                 unsafe_allow_html=True,
             )
 
-        # ==== أكثر سبب اتصال (Details) ====
+        # ==== أكثر سبب اتصال (Details) — بدون عنوان كبير مكرر، قائمة أسباب + شريط فقط ====
         with col2:
             details_series = filtered_df.get("Details", pd.Series(dtype=str))
             non_empty_details = details_series[details_series.astype(str).str.strip() != ""]
@@ -79,32 +90,31 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str) -> None:
             top3 = non_empty_details.value_counts().head(3)
 
             bars_html = ""
-            for value, cnt in top3.items():
+            for idx, (value, cnt) in enumerate(top3.items()):
                 pct_of_total = (cnt / len(non_empty_details) * 100) if len(non_empty_details) else 0
+                fill_class = "maz-reason-fill" if idx == 0 else "maz-reason-fill-secondary"
                 bars_html += (
                     f'<div class="maz-reason-row">'
                     f'<div class="maz-reason-label-row">'
                     f'<span title="{value}">{str(value).strip().capitalize()}</span><span>{cnt}</span>'
                     f'</div>'
-                    f'<div class="maz-reason-track"><div class="maz-reason-fill" style="width:{pct_of_total:.0f}%;"></div></div>'
+                    f'<div class="maz-reason-track"><div class="{fill_class}" style="width:{pct_of_total:.0f}%;"></div></div>'
                     f"</div>"
                 )
             no_reason_line = (
                 f'<div class="maz-reason-empty-line">{t("inbound_insight_no_reason", lang).format(count=empty_details_count)}</div>'
                 if empty_details_count else ""
             )
-            top_value_display = str(top3.index[0]).strip().capitalize() if not top3.empty else "—"
             st.markdown(
                 f'<div class="maz-insight-card">'
-                f'<div class="maz-insight-icon-tile maz-tile-reason"><span class="material-symbols-outlined">forum</span></div>'
+                f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">forum</span></div>'
                 f'<div class="maz-insight-label">{t("inbound_insight_top_reason", lang)}</div>'
-                f'<div class="maz-insight-value">{top_value_display}</div>'
                 f"{bars_html}{no_reason_line}"
                 f"</div>",
                 unsafe_allow_html=True,
             )
 
-        # ==== أكثر رقم اتصل ====
+        # ==== أكثر رقم اتصل — سطر واحد nowrap، dir=ltr، محاذاة يمين ====
         with col3:
             number_series = filtered_df.get("Number", pd.Series(dtype=str))
             number, count, _ = _top_value_insight(number_series)
@@ -112,7 +122,7 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str) -> None:
             meta = t("inbound_insight_called_times", lang).format(count=count) if number else ""
             st.markdown(
                 f'<div class="maz-insight-card">'
-                f'<div class="maz-insight-icon-tile maz-tile-number"><span class="material-symbols-outlined">call</span></div>'
+                f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">call</span></div>'
                 f'<div class="maz-insight-label">{t("inbound_insight_top_number", lang)}</div>'
                 f'<div class="maz-insight-value" dir="ltr">{display_number}</div>'
                 f'<div class="maz-insight-meta">{meta}</div>'
@@ -191,48 +201,79 @@ def inbound_call_page() -> None:
             st.success(t("inbound_success_processed", lang))
             render_empty_state(t("inbound_warning_no_rows", lang))
         else:
-            filtered_df, group_enabled, filter_state, df_with_date = compute_filtered(result.rows, lang)
-            csv_bytes = filtered_df.to_csv(index=False).encode("utf-8-sig")
+            total_rows_count = len(result.rows)
+            company_options = get_company_options(result.rows)
+
+            def _build_csv(phone_search: str, selected_company: str) -> bytes:
+                csv_df, _, _, _ = compute_filtered(
+                    result.rows, lang, company_filter=selected_company, phone_search=phone_search,
+                )
+                return csv_df.to_csv(index=False).encode("utf-8-sig")
 
             with header_box.container():
-                render_results_header(
+                phone_search, selected_company = render_results_header(
                     eyebrow=t("eyebrow_inbound", lang),
                     title=t("inbound_subheader_results", lang),
                     subtitle=subtitle,
+                    lang=lang,
+                    company_options=company_options,
                     download_label=t("inbound_download_csv_label", lang),
-                    download_data=csv_bytes,
+                    build_download_data=_build_csv,
                     download_filename="inbound_calls_filtered.csv",
                     download_mime="text/csv",
+                )
+
+            filtered_df, group_enabled, filter_state, df_with_date = compute_filtered(
+                result.rows, lang, company_filter=selected_company, phone_search=phone_search,
+            )
+
+            phone_banner = phone_search_summary(filtered_df, phone_search)
+            if phone_banner is not None:
+                if phone_banner["found"]:
+                    banner_text = t("inbound_phone_banner_found", lang).format(
+                        count=phone_banner["count"],
+                        date=phone_banner["last_date"] or "—",
+                        company=phone_banner["company"] or "—",
+                    )
+                else:
+                    banner_text = t("inbound_phone_banner_not_found", lang)
+                st.markdown(
+                    f'<p style="color:var(--text-secondary);font-size:0.88rem;margin:0 0 14px 0;">{banner_text}</p>',
+                    unsafe_allow_html=True,
                 )
 
             st.success(t("inbound_success_processed", lang))
 
             total = len(filtered_df)
-            serviced_count = int((filtered_df["Call Status"].astype(str).str.lower() == "serviced").sum())
-            serviced_pct = (serviced_count / total * 100) if total else 0.0
-            unique_numbers = filtered_df["Number"].nunique()
+            unclassified_count = int((filtered_df["Details"].astype(str).str.strip() == "").sum())
+            unclassified_pct = (unclassified_count / total * 100) if total else 0.0
             repeat_numbers = filtered_df["Number"].value_counts()
             repeated_count = int((repeat_numbers > 1).sum())
+            repeated_sub = (
+                t("inbound_kpi_repeat_callers_zero", lang) if repeated_count == 0
+                else t("inbound_kpi_repeat_callers_sub", lang)
+            )
 
             render_kpi_row(
                 [
                     KPICardData(
-                        label=t("inbound_metric_total", lang), value=f"{total:,}", icon="📞", accent=True,
+                        label=t("inbound_metric_total", lang), value=f"{total:,}", icon=_icon_tile("call"), accent=True,
                         sub_line=t("inbound_kpi_total_sub", lang),
                     ),
                     KPICardData(
-                        label=t("inbound_kpi_serviced", lang), value=f"{serviced_count:,}", icon="✅",
-                        progress_pct=serviced_pct,
+                        label=t("inbound_kpi_unclassified", lang), value=f"{unclassified_count:,}",
+                        icon=_icon_tile("label_off"),
+                        sub_line=t("inbound_kpi_unclassified_sub", lang).format(pct=f"{unclassified_pct:.0f}"),
                     ),
                     KPICardData(
-                        label=t("inbound_kpi_unique_numbers", lang), value=f"{unique_numbers:,}",
-                        icon='<span class="maz-kpi-icon-tile"><span class="material-symbols-outlined">group</span></span>',
-                        sub_line=_format_unique_sub(repeated_count, lang),
+                        label=t("inbound_kpi_repeat_callers", lang), value=f"{repeated_count:,}",
+                        icon=_icon_tile("group"),
+                        sub_line=repeated_sub,
                     ),
                 ]
             )
 
-            _render_insight_cards(filtered_df, lang)
+            _render_insight_cards(filtered_df, lang, selected_company, total_rows_count)
 
             render_filter_toolbar(df_with_date, filter_state, lang)
             render_table_body(len(result.rows), filtered_df, group_enabled, lang)

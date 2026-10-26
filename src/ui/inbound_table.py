@@ -35,8 +35,20 @@ _DETAILS_ALL_VALUE = ""  # قيمة داخلية ثابتة (غير مترجمة
 # مستقلة عن اللغة فلا تتأثر بتبديل عربي/إنجليزي بمنتصف الجلسة (النص المعروض عبر format_func)
 
 
-def _digits_only(text: str) -> str:
-    return re.sub(r"\D", "", text or "")
+def normalize_phone(raw: str) -> str:
+    """ينظّف رقم جوال خام للمقارنة: يشيل المسافات و+ و-، ثم يوحّد صيغ 05xxxxxxxx /
+    9665xxxxxxxx / 009665xxxxxxxx لنفس الشكل القياسي (5xxxxxxxx بدون أي بادئة دولة/صفر)."""
+    digits = re.sub(r"\D", "", re.sub(r"[\s+\-]", "", raw or ""))
+    if digits.startswith("00966"):
+        digits = digits[5:]
+    elif digits.startswith("966"):
+        digits = digits[3:]
+    elif digits.startswith("0"):
+        digits = digits[1:]
+    return digits
+
+
+COMPANY_ALL_VALUE = ""  # قيمة داخلية ثابتة (غير مترجمة) لخيار "كل الشركات"
 
 
 def _call_type_html(value: str, lang: str) -> str:
@@ -72,7 +84,6 @@ def _filter_state_from_session(df: pd.DataFrame) -> dict:
         date_default = (today, today) if min_d <= today <= max_d else (min_d, max_d)
     details_options = sorted(v for v in df["Details"].dropna().unique().tolist() if str(v).strip())
     return {
-        "search_term": st.session_state.get("inbound_filter_search", ""),
         "date_filter": st.session_state.get("inbound_filter_date", date_default),
         "details_options": details_options,
         "details_filter": st.session_state.get("inbound_filter_details", _DETAILS_ALL_VALUE),
@@ -80,14 +91,27 @@ def _filter_state_from_session(df: pd.DataFrame) -> dict:
     }
 
 
+def get_company_options(rows: list[dict]) -> list[str]:
+    """قائمة الشركات الفريدة (غير فاضية) بترتيب أبجدي — تُستخدم لبناء قائمة فلتر الشركة
+    بالهيدر؛ لا علاقة لها بمنطق compute_filtered (تُستدعى من ملف الصفوف الخام مباشرة قبله)."""
+    df = pd.DataFrame(rows)
+    if df.empty or "company" not in df.columns:
+        return []
+    return sorted(v for v in df["company"].dropna().unique().tolist() if str(v).strip())
+
+
 def _apply_filter_mask(df: pd.DataFrame, state: dict) -> pd.DataFrame:
     """لا فلترة على عمود الحالة إطلاقًا (حُذف الفلتر بالكامل حسب الطلب) — عمود "حالة
     المكالمة" بالجدول يبقى كما هو دائمًا بغض النظر عن باقي الفلاتر."""
     mask = pd.Series(True, index=df.index)
-    if state["search_term"]:
-        digits = _digits_only(state["search_term"])
-        if digits:
-            mask &= df["Number"].astype(str).apply(_digits_only).str.contains(digits, na=False)
+    company_filter = state.get("company_filter", COMPANY_ALL_VALUE)
+    if company_filter and company_filter != COMPANY_ALL_VALUE:
+        mask &= df.get("company", "").astype(str) == company_filter
+    phone_search = state.get("phone_search", "")
+    if phone_search:
+        target = normalize_phone(phone_search)
+        if target:
+            mask &= df["Number"].astype(str).apply(normalize_phone) == target
     date_filter = state["date_filter"]
     if isinstance(date_filter, tuple) and len(date_filter) == 2:
         start_d, end_d = date_filter
@@ -98,28 +122,51 @@ def _apply_filter_mask(df: pd.DataFrame, state: dict) -> pd.DataFrame:
     return df[mask]
 
 
-def compute_filtered(rows: list[dict], lang: str) -> tuple[pd.DataFrame, bool, dict, pd.DataFrame]:
-    """يرجع (filtered_df, group_enabled, filter_state, df_with_date). يُستخدم لحساب
-    KPI/المؤشرات *قبل* رسم شريط الفلاتر بصريًا (render_filter_toolbar أدناه، يُستدعى لاحقًا
-    بموضعه الصحيح فوق الجدول مباشرة) — بدون رسم أي ودجت هنا، فقط قراءة session_state."""
+def compute_filtered(
+    rows: list[dict], lang: str, company_filter: str = "", phone_search: str = "",
+) -> tuple[pd.DataFrame, bool, dict, pd.DataFrame]:
+    """يرجع (filtered_df, group_enabled, filter_state, df_with_date). company_filter/
+    phone_search تُمرَّر مباشرة (قيمتاهما الفعلية من ودجتات الهيدر اللي تُرسم *قبل* هذا
+    الاستدعاء بنفس التشغيلة) — بعكس التاريخ/التفاصيل/الدمج اللي تُقرأ من session_state لأن
+    ودجتاتها ترسم لاحقًا فوق الجدول (راجع render_filter_toolbar أدناه لموضعها الصحيح)."""
     df = pd.DataFrame(rows)
     if df.empty:
         return df, False, {}, df
     df["_date_parsed"] = pd.to_datetime(df["Date"], errors="coerce").dt.date
     state = _filter_state_from_session(df)
+    state["company_filter"] = company_filter
+    state["phone_search"] = phone_search
     filtered_df = _apply_filter_mask(df, state).drop(columns=["_date_parsed"])
     return filtered_df, state["group_enabled"], state, df
 
 
+def phone_search_summary(filtered_df: pd.DataFrame, phone_search: str) -> dict | None:
+    """بانر نتيجة البحث برقم الجوال (فوق البطاقات) — None لو ما فيه بحث نشط. مبني على
+    filtered_df نفسه (بعد كل الفلاتر الأخرى بما فيها الشركة) حتى يتوافق مع باقي الصفحة."""
+    if not phone_search or not normalize_phone(phone_search):
+        return None
+    if filtered_df.empty:
+        return {"found": False}
+    company = ""
+    if "company" in filtered_df.columns:
+        non_empty = filtered_df["company"][filtered_df["company"].astype(str).str.strip() != ""]
+        company = str(non_empty.iloc[0]) if not non_empty.empty else ""
+    return {
+        "found": True,
+        "count": len(filtered_df),
+        "last_date": str(filtered_df["Date"].max()) if "Date" in filtered_df.columns else "",
+        "company": company,
+    }
+
+
 def render_filter_toolbar(df_with_date: pd.DataFrame, state: dict, lang: str) -> None:
     """يرسم شريط الفلاتر بصريًا فقط (فوق الجدول مباشرة) — لا يُعيد حساب أي فلترة؛ نفس
-    مفاتيح session_state المستخدمة بـcompute_filtered أعلاه فتبقى القيم متوافقة دائمًا."""
+    مفاتيح session_state المستخدمة بـcompute_filtered أعلاه فتبقى القيم متوافقة دائمًا.
+    بحث الرقم والشركة انتقلا للهيدر — ما بقي هنا غير التاريخ/التفاصيل/الدمج فقط."""
     if df_with_date.empty:
         return
     with st.container(key="maz_card_inbound_filters"):
-        col_search, col_date, col_details, col_group = st.columns([1.6, 1.3, 1.3, 1.1])
-        with col_search:
-            st.text_input(t("inbound_table_search_label", lang), key="inbound_filter_search")
+        col_date, col_details, col_group = st.columns([1.3, 1.3, 1.1])
         with col_date:
             valid_dates = df_with_date["_date_parsed"].dropna()
             if not valid_dates.empty:

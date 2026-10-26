@@ -34,33 +34,61 @@ def render_page_header(
                     st.rerun()
 
 
+_COMPANY_ALL = ""  # نفس قيمة COMPANY_ALL_VALUE بـ inbound_table.py (داخلية، غير مترجمة)
+
+
 def render_results_header(
     eyebrow: str,
     title: str,
     subtitle: str,
+    lang: str,
+    company_options: list[str],
     download_label: str,
-    download_data: bytes,
+    build_download_data: Callable[[str, str], bytes],
     download_filename: str,
     download_mime: str,
-) -> None:
-    """عنوان صفحة النتائج (بعد المعالجة) — بدون بطاقة/حدود (خلفية الصفحة مباشرة)، مع زر
-    تحميل CSV بالجهة المقابلة للعنوان. يستبدل render_page_header بصريًا لحالة النتائج فقط
-    (يُرسم داخل نفس st.empty() placeholder، فيحل محل هيدر الرفع الافتراضي)."""
+) -> tuple[str, str]:
+    """عنوان صفحة النتائج (بعد المعالجة) — بدون بطاقة/حدود (خلفية الصفحة مباشرة). يسار
+    الهيدر: بحث برقم الجوال، فلتر الشركة، زر تحميل CSV (بهذا الترتيب) — يرجع (phone_search,
+    selected_company) لاستخدامهما مباشرة بحساب الفلترة بنفس التشغيلة.
+    build_download_data(phone_search, selected_company) -> bytes: يُستدعى هنا بعد معرفة
+    قيمتي البحث/الشركة (من نفس الاستدعاء) لحساب بيانات CSV *قبل* رسم زر التحميل — يتفادى
+    مشكلة الدائرية (الزر يحتاج القيم اللي ترجعها هذي الدالة نفسها). يستبدل render_page_header
+    بصريًا لحالة النتائج فقط (يُرسم داخل نفس st.empty() placeholder)."""
     with st.container(key="maz_results_header"):
-        col_text, col_action = st.columns([3, 1])
+        col_text, col_action = st.columns([1.6, 2])
         with col_text:
             st.markdown(f'<div class="maz-eyebrow">{eyebrow}</div>', unsafe_allow_html=True)
             st.markdown(f"<h1>{title}</h1>", unsafe_allow_html=True)
             st.markdown(f'<div class="maz-page-subtitle">{subtitle}</div>', unsafe_allow_html=True)
         with col_action:
-            st.download_button(
-                download_label,
-                data=download_data,
-                file_name=download_filename,
-                mime=download_mime,
-                icon=":material/download:",
-                use_container_width=True,
-            )
+            col_search, col_company, col_csv = st.columns([1.3, 1.2, 1])
+            with col_search:
+                phone_search = st.text_input(
+                    t("inbound_header_search_label", lang),
+                    placeholder=t("inbound_header_search_placeholder", lang),
+                    key="inbound_header_phone_search",
+                    label_visibility="collapsed",
+                )
+            with col_company:
+                company_select_options = [_COMPANY_ALL] + company_options
+                selected_company = st.selectbox(
+                    t("inbound_header_company_label", lang),
+                    options=company_select_options,
+                    format_func=lambda v: t("inbound_filter_all_companies", lang) if v == _COMPANY_ALL else v,
+                    key="inbound_header_company_filter",
+                    label_visibility="collapsed",
+                )
+            with col_csv:
+                st.download_button(
+                    download_label,
+                    data=build_download_data(phone_search, selected_company),
+                    file_name=download_filename,
+                    mime=download_mime,
+                    icon=":material/download:",
+                    use_container_width=True,
+                )
+    return phone_search, selected_company
 
 
 def render_footer(lang: str) -> None:

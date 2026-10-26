@@ -7,91 +7,88 @@ Design tokens + الحقنة الموحّدة لـ CSS لثيم Maznexa **الف
 تلقائيًا على كل مكان يستخدمها، بدون الحاجة لتعديل تلك الملفات نفسها في أغلب الحالات.
 """
 
-# ==== Maznexa Brand Color Guidelines — قيم حرفية، لا تقريب ====
-MAZNEXA_PURPLE = "#9354FF"
-PURPLE_V2 = "#7B3FF2"        # primaryColor الجديد (config.toml) — أزرار الرفع، دائرة الخطوة الحالية
-PURPLE_ACTIVE_NAV = "#6A2FE0"  # نص عنصر الشريط الجانبي النشط
-PURPLE_LINK = "#7A3BF0"
-PURPLE_DEEP = "#5B21B6"      # عائلة بنفسجي جديدة (صفحة Inbound Call — بنفسجي فقط، بدون أخضر/أزرق/أصفر)
-PURPLE_DARKEST = "#2E1065"
-PURPLE_LIGHT = "#C4A6FF"
-PURPLE_PALE = "#E4D7FF"
-PURPLE_TINT = "#F1EAFF"
-PURPLE_WAVE = "#683EB5"
-NIGHT_PURPLE = "#3E296B"
-DARK_PURPLE = "#131321"
-TECHNO_PURPLE = "#C9AAFF"
-LUMINOUS_PURPLE = "#AE7FFF"
-NEON_BLUE = "#6265FE"
+# ==== Maznexa Official Brand Palette — القائمة المغلقة الوحيدة المسموحة بكل الألوان
+# (+ الأبيض) حسب الطلب الصريح: ممنوع أي لون خارجها بأي مكان بالتطبيق. ====
+PURPLE_50 = "#F3EEFF"
+PURPLE_100 = "#E4D4FF"
+PURPLE_200 = "#C9AAFF"
+PURPLE_300 = "#AE7FFF"
+PURPLE_400 = "#9354FF"
+PURPLE_500 = "#683EB5"
+PURPLE_600 = "#3E296B"
+PURPLE_700 = "#131321"
 
-TEXT_MUTED = "#5D5870"       # نص ثانوي (عنوان فرعي، تعليمات الرفع، أيقونة طي الشريط الجانبي)
-TEXT_MUTED_DARK = "#3B3650"  # نص ثانوي أغمق (الشريط الجانبي غير النشط، محاور الرسوم)
-STEP_CARD_BORDER = "#E7E2F3"
+BLUE_50 = "#CFE7FE"
+BLUE_100 = "#B5B9FE"
+BLUE_200 = "#8C8FFE"
+BLUE_300 = "#6265FE"
+BLUE_400 = "#5053C8"
+BLUE_500 = "#3F4192"
+BLUE_600 = "#252F77"
+BLUE_700 = "#172242"
 
 WHITE = "#FFFFFF"
-OFF_WHITE = "#F5F5F5"
-LIGHT_GRAY = "#C9C9C9"
-MEDIUM_GRAY = "#9E9E9E"
-DARK_GRAY = "#474747"
-CHARCOAL = "#1B1B1B"
+
+# أسماء دلالية (semantic) تُستخدم بباقي الملف — كلها مجرد أسماء بديلة لنفس قيم القائمة أعلاه،
+# بدون أي قيمة hex إضافية جديدة.
+MAZNEXA_PURPLE = PURPLE_400          # اللون البنفسجي الأساسي — بطاقة KPI المعبّأة، أيقونات
+PRIMARY_ACTION = PURPLE_500          # الأزرار + العنصر النشط بالسايدبار + primaryColor
+TEXT_MUTED = PURPLE_600              # نص ثانوي
+TEXT_MUTED_DARK = PURPLE_600         # نص محاور الرسوم (نفس القيمة — توحيد كامل)
+STEP_CARD_BORDER = PURPLE_100
 
 # ==== توكنز الثيم الفاتح (Light Theme) ====
-BG_PRIMARY = "#F6F4FB"
-BG_SECONDARY = "#FFFFFF"
-SURFACE = "#FFFFFF"
-SURFACE_HOVER = "#F6F4FB"
-BORDER = "#ECE8F5"
-BORDER_STRONG = "#DCD5EE"
-TEXT_PRIMARY = "#16131F"
-TEXT_SECONDARY = "#6B6880"
+BG_PRIMARY = PURPLE_50
+BG_SECONDARY = WHITE
+SURFACE = WHITE
+SURFACE_HOVER = PURPLE_50
+BORDER = PURPLE_100
+BORDER_STRONG = PURPLE_200
+TEXT_PRIMARY = PURPLE_700
+TEXT_SECONDARY = PURPLE_600
 
-SUCCESS = "#10B981"
-WARNING = "#F59E0B"
+# أحمر الأخطاء استثناء وحيد قائم من جولات سابقة (لا بديل بالقائمة المعتمدة لمعنى "خطأ") —
+# يبقى محصورًا برسائل الخطأ فقط، لا يُستخدم بأي بطاقة/شارة/رسم.
 DANGER = "#B42318"
-DANGER_BG = "#FEE4E2"  # مسموح فقط لرسائل الخطأ — القيد الوحيد غير البنفسجي بصفحة Inbound Call
+DANGER_BG = "#FEE4E2"
 
-# ==== ألوان الرسوم البيانية — هوية Maznexa فقط (درجات بنفسجي)، ممنوع أي أزرق/أخضر/برتقالي
-# أو color sequence افتراضي بأي رسم بالتطبيق. تُستخدم مباشرة بكل ملفات الرسوم
+# ==== ألوان الرسوم البيانية — من القائمة المعتمدة حصرًا، تُستخدم مباشرة بكل ملفات الرسوم
 # (charts_combo.py, charts_sales.py, charts_offline.py) — لا قيم hex أخرى مكتوبة يدويًا هناك. ====
 MAZ_COLORS = {
     "sales": "#9354FF",    # إجمالي المبيعات
-    "offline": "#2E1866",  # إجمالي العملاء الأوفلاين
+    "offline": "#252F77",  # إجمالي العملاء الأوفلاين
 }
 
-GRADIENT_PRIMARY = f"linear-gradient(135deg, {MAZNEXA_PURPLE} 0%, {PURPLE_WAVE} 100%)"
+GRADIENT_PRIMARY = f"linear-gradient(135deg, {PURPLE_400} 0%, {PURPLE_500} 100%)"
 GRADIENT_SOFT = f"linear-gradient(135deg, rgba(147,84,255,0.10) 0%, rgba(104,62,181,0.04) 100%)"
 
-# ==== شارات الحالة/التصنيف (Pill Badges) — بنفسجي فقط (استبدال الأخضر/الأزرق/الأصفر السابقين) ====
-BADGE_SERVICED_TEXT = SUCCESS
-BADGE_SERVICED_BG = "#E7F8F0"
-BADGE_SERVICED_DOT = SUCCESS  # نقطة الحالة بالشارة + نفس لون شريط تقدم KPI "تمت الخدمة"
-BADGE_OFFERS_TEXT = PURPLE_V2
-BADGE_OFFERS_BG = "#F1EAFF"
-BADGE_ORDER_TEXT = "#2563EB"
-BADGE_ORDER_BG = "#E8F0FE"
-# ألوان بطاقات "أبرز المؤشرات" — كل بطاقة بلون مختلف حسب الصورة المرجعية (سبب الاتصال
-# أزرق، أكثر رقم اتصل كهرماني) بدل اللون البنفسجي الموحّد السابق لهذا القسم تحديدًا
-INSIGHT_TILE_REASON_BG = "#E8F0FE"
-INSIGHT_ICON_REASON = "#3B82F6"
-INSIGHT_TILE_NUMBER_BG = "#FEF3C7"
-INSIGHT_ICON_NUMBER = "#D97706"
-INSIGHT_COUNT_PILL_BG = "#FEF3C7"
-INSIGHT_COUNT_PILL_TEXT = "#92400E"
-BADGE_OTHER_TEXT = "#6B6880"
-BADGE_OTHER_BG = "#F3F0FA"
-BADGE_REPEAT_TEXT = "#FFFFFF"
-BADGE_REPEAT_BG = "#5B21B6"
+# ==== شارات الحالة/التصنيف (Pill Badges) — من القائمة المعتمدة حصرًا ====
+BADGE_SERVICED_TEXT = PURPLE_400
+BADGE_SERVICED_BG = PURPLE_50
+BADGE_SERVICED_DOT = PURPLE_400
+BADGE_OFFERS_TEXT = BLUE_600
+BADGE_OFFERS_BG = BLUE_50
+BADGE_ORDER_TEXT = PURPLE_600
+BADGE_ORDER_BG = PURPLE_100
+BADGE_OTHER_TEXT = PURPLE_600
+BADGE_OTHER_BG = PURPLE_50
+BADGE_REPEAT_TEXT = WHITE
+BADGE_REPEAT_BG = BLUE_600
 
-# ترتيب ثابت للألوان الفئوية (Categorical) بالرسوم — نفس البراند ياخذ نفس اللون دائمًا، عائلة
-# بنفسجي بالكامل حصرًا (قيم حرفية من المواصفة). أي براند غير مذكور هنا ياخذ DEFAULT_COLOR.
+# مربعات الأيقونات الخطية — موحّدة بالكامل بكل مكان بالتطبيق (بدون تمييز لوني لكل بطاقة).
+ICON_TILE_BG = PURPLE_50
+ICON_TILE_COLOR = PURPLE_400
+
+# ترتيب ثابت للألوان الفئوية (Categorical) بالرسوم — نفس البراند ياخذ نفس اللون دائمًا.
+# أي براند غير مذكور هنا ياخذ DEFAULT_COLOR (من القائمة المعتمدة أيضًا).
 BRAND_COLORS = {
-    "BedQuarterKSA": "#2E1866",
-    "BedHouse": "#9354FF",
-    "LaZBoy": "#C2A3FF",
-    "BedQuarterBAH": "#E3D6FF",
-    "BedQuarterUAE": "#A7A3B8",
+    "BedQuarterKSA": "#9354FF",
+    "BedHouse": "#252F77",
+    "LaZBoy": "#8C8FFE",
+    "BedQuarterBAH": "#C9AAFF",
+    "BedQuarterUAE": "#CFE7FE",
 }
-DEFAULT_COLOR = "#A7A3B8"
+DEFAULT_COLOR = PURPLE_300
 FALLBACK_BRAND_COLOR = DEFAULT_COLOR
 
 FONT_STACK = "'IBM Plex Sans Arabic', 'Poppins', 'Segoe UI', Tahoma, Arial, sans-serif"
@@ -110,7 +107,7 @@ MATERIAL_SYMBOLS_URL = (
 
 
 def _maznexa_altair_theme() -> dict:
-    """خلفية شفافة + محاور/نصوص #3B3650 + شبكة أفقية فقط (محور Y) — مطبَّقة مركزيًا على كل
+    """خلفية شفافة + محاور/نصوص #3E296B (TEXT_MUTED_DARK) + شبكة أفقية فقط (محور Y) — مطبَّقة مركزيًا على كل
     رسوم Altair بالتطبيق (charts_sales.py, charts_offline.py, exclusion chart بصفحة الرفع)
     بدون الحاجة لتعديل كل ملف رسم على حدة؛ لا تتعارض مع ألوان mark/encoding المحددة يدويًا
     بكل رسم (البراندات، الشرائح...) لأنها إعدادات هيكلية عامة فقط (خلفية/محاور/شبكة)."""
@@ -201,13 +198,6 @@ def inject_theme(lang: str) -> None:
             --border-strong: {BORDER_STRONG};
             --text-primary: {TEXT_PRIMARY};
             --text-secondary: {TEXT_SECONDARY};
-            --brand-primary: {MAZNEXA_PURPLE};
-            --brand-link: {PURPLE_LINK};
-            --brand-secondary: {NEON_BLUE};
-            --success: {SUCCESS};
-            --warning: {WARNING};
-            --danger: {DANGER};
-            --gradient-primary: {GRADIENT_PRIMARY};
             --radius-card: 20px;
             --radius-input: 12px;
         }}
@@ -240,8 +230,8 @@ def inject_theme(lang: str) -> None:
             border-inline-end: 1px solid var(--border);
         }}
         /* دعم اسمي testid محتملين حسب نسخة Streamlit (stSidebarNav a القديم، stSidebarNavLink
-           الأحدث) معًا — غير ضار لو أحدهما غير مطابق فعليًا. عنصر الصفحة النشطة الآن تينت فاتح
-           بنفسجي (#F1EBFF) بدل التعبئة الكاملة السابقة. */
+           الأحدث) معًا — غير ضار لو أحدهما غير مطابق فعليًا. عنصر الصفحة النشطة تعبئة مصمتة
+           {PRIMARY_ACTION} بنص أبيض. */
         [data-testid="stSidebarNav"] a, [data-testid="stSidebarNavLink"] {{
             border-radius: var(--radius-input);
             margin: 2px 8px;
@@ -257,14 +247,15 @@ def inject_theme(lang: str) -> None:
             opacity: 1 !important;
         }}
         [data-testid="stSidebarNav"] a:hover, [data-testid="stSidebarNavLink"]:hover {{
-            background: #F3F0FA;
+            background: {PURPLE_50};
         }}
+        /* العنصر النشط: تعبئة مصمتة {PURPLE_500} بنص أبيض (بدل التينت الفاتح السابق) — حسب الطلب */
         [data-testid="stSidebarNav"] a[aria-current="page"], [data-testid="stSidebarNavLink"][aria-current="page"] {{
-            background: #F1EBFF !important;
+            background: {PRIMARY_ACTION} !important;
             border-radius: 12px;
         }}
         [data-testid="stSidebarNav"] a[aria-current="page"] span, [data-testid="stSidebarNavLink"][aria-current="page"] span {{
-            color: {PURPLE_ACTIVE_NAV} !important;
+            color: {WHITE} !important;
             font-weight: 600;
         }}
         [data-testid="stSidebarCollapseButton"] svg {{ color: {TEXT_MUTED} !important; }}
@@ -288,8 +279,15 @@ def inject_theme(lang: str) -> None:
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius-card);
+            overflow: hidden;
             padding: 20px 22px;
             margin-bottom: 20px;
+        }}
+        /* عناصر Streamlit الداخلية (stVerticalBlock/element-container) شفافة دائمًا داخل أي
+        بطاقة — overflow:hidden أعلاه وحده يمنع أي ركن مربع من محتوى داخلي يلامس الحواف. */
+        div[class*="st-key-maz_card_"] [data-testid="stVerticalBlock"],
+        div[class*="st-key-maz_card_"] [data-testid="stElementContainer"] {{
+            background: transparent;
         }}
         .maz-card-title {{
             font-size: 1.05rem;
@@ -308,6 +306,7 @@ def inject_theme(lang: str) -> None:
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius-card);
+            overflow: hidden;
             padding: 20px 22px;
             margin-bottom: 20px;
         }}
@@ -331,8 +330,9 @@ def inject_theme(lang: str) -> None:
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius-card);
+            overflow: hidden;
             padding: 20px 26px;
-            margin-bottom: 22px;
+            margin-bottom: 20px;
         }}
         div[class*="st-key-maz_page_header"] > div {{ width: 100%; }}
         .maz-page-header h1 {{
@@ -354,7 +354,7 @@ def inject_theme(lang: str) -> None:
             align-items: center;
             justify-content: space-between;
             gap: 16px;
-            margin-bottom: 22px;
+            margin-bottom: 20px;
         }}
         div[class*="st-key-maz_results_header"] > div {{ width: 100%; }}
         div[class*="st-key-maz_results_header"] h1 {{
@@ -369,20 +369,29 @@ def inject_theme(lang: str) -> None:
             color: var(--text-secondary);
             margin-top: 4px;
         }}
+        /* بحث/فلتر الشركة/زر التحميل بالهيدر — كلها ارتفاع 48px ونفس radius الإدخالات */
+        div[class*="st-key-maz_results_header"] [data-testid="stTextInput"] input,
+        div[class*="st-key-maz_results_header"] [data-baseweb="select"] > div {{
+            min-height: 48px;
+            border-radius: var(--radius-input);
+        }}
+        div[class*="st-key-maz_results_header"] [data-testid="stDownloadButton"] button {{
+            min-height: 48px;
+        }}
         .maz-page-header .maz-page-meta {{
             font-size: 0.78rem;
             color: var(--text-secondary);
             white-space: nowrap;
         }}
 
-        /* ==== أزرار ==== */
+        /* ==== أزرار (كلها ارتفاع 48px ونفس radius الإدخالات) ==== */
         .stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primary"] {{
-            background: {MAZNEXA_PURPLE};
+            background: {PRIMARY_ACTION};
             border: none;
             color: {WHITE};
             font-weight: 700;
             border-radius: var(--radius-input);
-            min-height: 44px;
+            min-height: 48px;
             transition: filter 180ms ease-in-out;
         }}
         .stButton > button[kind="primary"]:hover, .stFormSubmitButton > button[kind="primary"]:hover {{
@@ -393,7 +402,7 @@ def inject_theme(lang: str) -> None:
             border: 1px solid var(--border);
             color: var(--text-primary);
             border-radius: var(--radius-input);
-            min-height: 44px;
+            min-height: 48px;
         }}
         [data-testid="stDownloadButton"] button {{
             background: {WHITE};
@@ -401,35 +410,35 @@ def inject_theme(lang: str) -> None:
             border: 1px solid var(--border);
             border-radius: var(--radius-input);
             font-weight: 600;
-            min-height: 44px;
+            min-height: 48px;
             transition: border-color 180ms ease-in-out;
         }}
         [data-testid="stDownloadButton"] button:hover {{
-            border-color: {MAZNEXA_PURPLE};
-            color: {PURPLE_LINK};
+            border-color: {PRIMARY_ACTION};
+            color: {PRIMARY_ACTION};
         }}
         button:focus-visible, [role="button"]:focus-visible, input:focus-visible, textarea:focus-visible {{
-            outline: 2px solid {MAZNEXA_PURPLE} !important;
+            outline: 2px solid {PRIMARY_ACTION} !important;
             outline-offset: 2px;
         }}
 
         /* ==== منطقة رفع الملف ==== */
         [data-testid="stFileUploaderDropzone"] {{
             background: {WHITE};
-            border: 2px dashed #B9A2FF !important;
+            border: 2px dashed {PURPLE_200} !important;
             border-radius: 24px !important;
             padding: 10px !important;
         }}
-        /* أيقونة الرفع داخل دائرة #F1EBFF */
+        /* أيقونة الرفع داخل دائرة {PURPLE_50} */
         [data-testid="stFileUploaderDropzoneIcon"] {{
-            background: #F1EBFF !important;
+            background: {PURPLE_50} !important;
             border-radius: 50% !important;
             padding: 10px !important;
             display: inline-flex !important;
         }}
         [data-testid="stFileUploaderDropzone"] svg {{
-            fill: {PURPLE_V2} !important;
-            color: {PURPLE_V2} !important;
+            fill: {PRIMARY_ACTION} !important;
+            color: {PRIMARY_ACTION} !important;
         }}
         /* نص تعليمات الرفع الأصلي "200MB per file • XLSX, CSV" (إنجليزي، من Streamlit نفسها)
         يُخفى بالكامل ونستبدله بنص عربي عبر ::after — نفس أسلوب زر "اختر ملف" أدناه بالضبط.
@@ -446,7 +455,7 @@ def inject_theme(lang: str) -> None:
         }}
         /* زر الرفع: نص "Browse files" الأصلي يُخفى ونستبدله بـ"اختر ملف" عبر ::after */
         [data-testid="stFileUploaderDropzone"] button {{
-            background-color: {PURPLE_V2} !important;
+            background-color: {PRIMARY_ACTION} !important;
             color: transparent !important;
             font-size: 0 !important;
             border: none !important;
@@ -464,7 +473,7 @@ def inject_theme(lang: str) -> None:
             white-space: nowrap;
         }}
         [data-testid="stFileUploaderDropzone"] button:hover {{
-            background-color: {PURPLE_WAVE} !important;
+            filter: brightness(1.1);
         }}
         .maz-upload-hint {{
             color: {TEXT_MUTED};
@@ -474,8 +483,8 @@ def inject_theme(lang: str) -> None:
         /* Chips صغيرة تحت منطقة الرفع (XLSX · CSV · حتى 200MB) */
         .maz-upload-chips {{ display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }}
         .maz-upload-chip {{
-            background: #F1EBFF;
-            color: {PURPLE_V2};
+            background: {PURPLE_50};
+            color: {PRIMARY_ACTION};
             font-size: 0.76rem;
             font-weight: 600;
             padding: 3px 12px;
@@ -488,12 +497,20 @@ def inject_theme(lang: str) -> None:
         }}
 
         /* ==== بطاقات المؤشرات (KPI) ==== */
+        div[class*="st-key-maz_kpi_row_wrap"] [data-testid="stHorizontalBlock"] {{
+            align-items: stretch;
+            gap: 20px;
+        }}
+        div[class*="st-key-maz_kpi_row_wrap"] [data-testid="stColumn"] > div {{ height: 100%; }}
         div[class*="st-key-kpi_card_"] {{
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 20px;
+            overflow: hidden;
             padding: 16px 18px 12px 18px;
             min-height: 158px;
+            height: 100%;
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
         }}
@@ -504,6 +521,10 @@ def inject_theme(lang: str) -> None:
         }}
         div[class*="st-key-kpi_card_accent_"] .maz-kpi-label {{ color: rgba(255,255,255,0.85); }}
         div[class*="st-key-kpi_card_accent_"] .maz-kpi-value {{ color: {WHITE}; }}
+        /* الأيقونة على البطاقة المعبّأة: مربع شفاف أبيض خفيف بدل {ICON_TILE_BG} الفاتح
+        (يتضارب بصريًا مع الخلفية البنفسجية المصمتة) — أبيض فقط، لا لون جديد. */
+        div[class*="st-key-kpi_card_accent_"] .maz-kpi-icon-tile {{ background: rgba(255,255,255,0.22); }}
+        div[class*="st-key-kpi_card_accent_"] .maz-kpi-icon-tile .material-symbols-outlined {{ color: {WHITE}; }}
         .maz-kpi-icon {{ font-size: 1.3rem; opacity: 0.9; }}
         .maz-kpi-icon-tile {{
             display: inline-flex;
@@ -511,12 +532,12 @@ def inject_theme(lang: str) -> None:
             justify-content: center;
             width: 20px;
             height: 20px;
-            border-radius: 6px;
-            background: #F1EBFF;
+            border-radius: 12px;
+            background: {ICON_TILE_BG};
             vertical-align: middle;
             margin-inline-end: 2px;
         }}
-        .maz-kpi-icon-tile .material-symbols-outlined {{ color: #9354FF; font-size: 14px; }}
+        .maz-kpi-icon-tile .material-symbols-outlined {{ color: {ICON_TILE_COLOR}; font-size: 14px; }}
         .maz-kpi-inner {{ display: flex; flex-direction: column; }}
         .maz-kpi-label {{
             color: var(--text-secondary);
@@ -563,45 +584,45 @@ def inject_theme(lang: str) -> None:
         }}
 
         /* ==== بطاقات الأبرز (Insight Cards) ==== */
-        div[class*="st-key-maz_card_insights_row"] {{ margin-bottom: 24px; }}
-        div[class*="st-key-maz_card_insights_row"] [data-testid="stHorizontalBlock"] {{ align-items: stretch; }}
-        div[class*="st-key-maz_card_insights_row"] [data-testid="stColumn"] > div {{ height: 100%; }}
+        div[class*="st-key-maz_insights_row_wrap"] {{ margin-bottom: 20px; }}
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stHorizontalBlock"] {{ align-items: stretch; }}
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > div {{ height: 100%; }}
         .maz-insight-card {{
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 20px;
+            overflow: hidden;
             padding: 16px 18px;
             min-height: 150px;
             height: 100%;
             box-sizing: border-box;
         }}
+        /* أيقونات موحّدة بالكامل (بدون تمييز لوني لكل بطاقة) — {ICON_TILE_COLOR} داخل مربع
+        {ICON_TILE_BG} بزوايا 12px، حسب الطلب الصريح. */
         .maz-insight-icon-tile {{
             width: 36px;
             height: 36px;
-            border-radius: 10px;
-            background: {PURPLE_TINT};
+            border-radius: 12px;
+            background: {ICON_TILE_BG};
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.1rem;
             margin-bottom: 10px;
         }}
-        .maz-insight-icon-tile .material-symbols-outlined {{ color: {PURPLE_LINK}; font-size: 20px; }}
-        .maz-insight-icon-tile.maz-tile-reason {{ background: {INSIGHT_TILE_REASON_BG}; }}
-        .maz-insight-icon-tile.maz-tile-reason .material-symbols-outlined {{ color: {INSIGHT_ICON_REASON}; }}
-        .maz-insight-icon-tile.maz-tile-number {{ background: {INSIGHT_TILE_NUMBER_BG}; }}
-        .maz-insight-icon-tile.maz-tile-number .material-symbols-outlined {{ color: {INSIGHT_ICON_NUMBER}; }}
+        .maz-insight-icon-tile .material-symbols-outlined {{ color: {ICON_TILE_COLOR}; font-size: 20px; }}
         .maz-insight-label {{ color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 4px; }}
         .maz-insight-value {{
-            color: #17131F;
+            color: {TEXT_PRIMARY};
             font-weight: 700;
-            font-size: 28px;
+            font-size: 26px;
             line-height: 1.3;
             font-family: 'IBM Plex Sans Arabic', sans-serif;
         }}
         .maz-insight-value[dir="ltr"] {{
             unicode-bidi: isolate;
             text-align: right;
+            white-space: nowrap;
             font-family: 'IBM Plex Sans Arabic', sans-serif;
         }}
         .maz-insight-meta {{ color: {TEXT_MUTED}; font-size: 14px; margin-top: 4px; }}
@@ -614,8 +635,9 @@ def inject_theme(lang: str) -> None:
             color: var(--text-secondary);
             margin-bottom: 4px;
         }}
-        .maz-reason-track {{ width: 100%; height: 6px; border-radius: 999px; background: #F1EBFF; overflow: hidden; }}
-        .maz-reason-fill {{ height: 100%; border-radius: 999px; background: {MAZNEXA_PURPLE}; }}
+        .maz-reason-track {{ width: 100%; height: 6px; border-radius: 999px; background: {PURPLE_50}; overflow: hidden; }}
+        .maz-reason-fill {{ height: 100%; border-radius: 999px; background: {PURPLE_400}; }}
+        .maz-reason-fill-secondary {{ height: 100%; border-radius: 999px; background: {PURPLE_200}; }}
         .maz-reason-empty-line {{
             color: {TEXT_MUTED};
             font-size: 13px;
@@ -671,7 +693,7 @@ def inject_theme(lang: str) -> None:
             width: 28px; height: 28px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             font-size: 0.8rem; font-weight: 700; color: {WHITE};
-            background: {PURPLE_V2};
+            background: {PRIMARY_ACTION};
             flex-shrink: 0;
         }}
         .maz-step-label {{ font-size: 0.85rem; color: {TEXT_MUTED}; }}
@@ -721,7 +743,7 @@ def inject_theme(lang: str) -> None:
             margin: 10px 2px;
         }}
         .maz-table-info-strip a, .maz-table-link-btn {{
-            color: {PURPLE_LINK};
+            color: {PRIMARY_ACTION};
             font-weight: 600;
             text-decoration: none;
             cursor: pointer;
@@ -755,7 +777,7 @@ def inject_theme(lang: str) -> None:
             color: var(--text-primary);
             vertical-align: middle;
         }}
-        table.maz-table tbody tr:nth-child(even) {{ background: #FCFBFE; }}
+        table.maz-table tbody tr:nth-child(even) {{ background: {PURPLE_50}; }}
         table.maz-table tbody tr:hover {{ background: {GRADIENT_SOFT}, var(--surface); }}
         table.maz-table tbody td[dir="ltr"] {{ font-weight: 700; }}
         .maz-call-type {{ display: inline-flex; align-items: center; gap: 6px; }}

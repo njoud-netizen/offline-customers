@@ -198,24 +198,24 @@ TRANSLATIONS = {
         "ar": "جاري قراءة الملف واستخراج تفاصيل المكالمات بالذكاء الاصطناعي...",
         "en": "Reading the file and extracting call details with AI...",
     },
-    "inbound_error_processing": {"ar": "❌ حدث خطأ أثناء معالجة ملف المكالمات:", "en": "❌ An error occurred while processing the calls file:"},
-    "inbound_success_processed": {"ar": "✅ تمت المعالجة بنجاح", "en": "✅ Processed successfully"},
+    "inbound_error_processing": {"ar": "حدث خطأ أثناء معالجة ملف المكالمات:", "en": "An error occurred while processing the calls file:"},
+    "inbound_success_processed": {"ar": "تمت المعالجة بنجاح", "en": "Processed successfully"},
     "inbound_warning_no_rows": {"ar": "لا توجد أي مكالمات Inbound بهذا الملف.", "en": "No Inbound calls found in this file."},
 
-    "inbound_metric_total": {"ar": "مكالمات Inbound", "en": "Inbound calls"},
+    "inbound_metric_total": {"ar": "إجمالي المكالمات", "en": "Total calls"},
     "inbound_metric_with_details": {"ar": "صفوف فيها تفاصيل مستخرجة", "en": "Rows with extracted details"},
     "inbound_metric_review": {"ar": "تحتاج مراجعة يدوية", "en": "Need manual review"},
     "inbound_metric_brands": {"ar": "براندات تم حلّها", "en": "Brands resolved"},
     "inbound_metric_complaints": {"ar": "شكاوى وزارة التجارة المحتملة", "en": "Possible Ministry of Commerce complaints"},
 
     "inbound_subheader_results": {"ar": "نتائج الاستخراج", "en": "Extraction Results"},
-    "inbound_expander_review": {"ar": "⚠️ صفوف تحتاج مراجعة يدوية", "en": "⚠️ Rows needing manual review"},
+    "inbound_expander_review": {"ar": "صفوف تحتاج مراجعة يدوية", "en": "Rows needing manual review"},
     "inbound_review_col_id": {"ar": "رقم المكالمة", "en": "Call ID"},
     "inbound_review_col_number": {"ar": "الرقم", "en": "Number"},
     "inbound_review_col_reason": {"ar": "سبب المراجعة", "en": "Review Reason"},
     "inbound_review_col_summary": {"ar": "ملخص المكالمة (مختصر)", "en": "Call Summary (excerpt)"},
 
-    "inbound_download_label": {"ar": "📥 تحميل ملف المكالمات (جاهز للصق بشيت المزروع)", "en": "📥 Download calls file (ready to paste into Almazro sheet)"},
+    "inbound_download_label": {"ar": "تحميل ملف المكالمات (جاهز للصق بشيت المزروع)", "en": "Download calls file (ready to paste into Almazro sheet)"},
 
     # ==== عناوين فرعية (Eyebrows) فوق عنوان كل صفحة ====
     "eyebrow_dashboard": {"ar": "لوحة التحكم", "en": "Dashboard"},
@@ -234,14 +234,26 @@ TRANSLATIONS = {
 
     # ==== صفحة Inbound Call — القشرة الجديدة ====
     "inbound_subtitle_with_date": {"ar": "سجل المكالمات الواردة · {date}", "en": "Inbound call log · {date}"},
-    "inbound_download_csv_label": {"ar": "⬇️ تحميل CSV", "en": "⬇️ Download CSV"},
+    "inbound_download_csv_label": {"ar": "تحميل CSV", "en": "Download CSV"},
     "inbound_kpi_serviced": {"ar": "تمت الخدمة", "en": "Serviced"},
-    "inbound_kpi_unique_numbers": {"ar": "عدد المتصلين", "en": "Number of callers"},
-    "inbound_kpi_unique_sub_zero": {"ar": "لا يوجد رقم اتصل أكثر من مرة", "en": "No numbers called more than once"},
-    "inbound_kpi_unique_sub_one": {"ar": "رقم واحد اتصل أكثر من مرة", "en": "1 number called more than once"},
-    "inbound_kpi_unique_sub_two": {"ar": "رقمين اتصلا أكثر من مرة", "en": "2 numbers called more than once"},
-    "inbound_kpi_unique_sub_plural": {"ar": "{count} أرقام اتصلت أكثر من مرة", "en": "{count} numbers called more than once"},
     "inbound_kpi_total_sub": {"ar": "كلها واردة", "en": "All inbound"},
+    "inbound_kpi_repeat_callers": {"ar": "أرقام اتصلت أكثر من مرة", "en": "Numbers that called more than once"},
+    "inbound_kpi_repeat_callers_sub": {"ar": "عملاء رجعوا يتصلون", "en": "Customers who called back"},
+    "inbound_kpi_repeat_callers_zero": {"ar": "ما فيه أرقام مكررة", "en": "No repeated numbers"},
+    "inbound_kpi_unclassified": {"ar": "مكالمات بدون تصنيف", "en": "Unclassified calls"},
+    "inbound_kpi_unclassified_sub": {"ar": "{pct}% من المكالمات ما انكتب لها سبب", "en": "{pct}% of calls have no recorded reason"},
+
+    # ==== بحث/فلتر الشركة بالهيدر ====
+    "inbound_header_search_label": {"ar": "بحث برقم الجوال", "en": "Search by phone number"},
+    "inbound_header_search_placeholder": {"ar": "مثال: 0505749725", "en": "e.g. 0505749725"},
+    "inbound_header_company_label": {"ar": "الشركة", "en": "Company"},
+    "inbound_filter_all_companies": {"ar": "كل الشركات", "en": "All companies"},
+    "inbound_phone_banner_found": {
+        "ar": "هذا الرقم اتصل {count} مرات · آخر اتصال: {date} · الشركة: {company}",
+        "en": "This number called {count} times · Last call: {date} · Company: {company}",
+    },
+    "inbound_phone_banner_not_found": {"ar": "ما فيه مكالمات من هذا الرقم", "en": "No calls from this number"},
+    "inbound_insight_company_share": {"ar": "حصة الشركة", "en": "Company share"},
 
     # ==== منطقة الرفع المحسّنة (كل الصفحات) ====
     "upload_drag_here": {"ar": "اسحب الملف هنا", "en": "Drag file here"},
@@ -275,9 +287,7 @@ TRANSLATIONS = {
     "inbound_insight_called_times": {"ar": "اتصل {count} مرات", "en": "Called {count} times"},
     "inbound_call_direction_inbound": {"ar": "واردة", "en": "Inbound"},
 
-    "inbound_table_search_label": {"ar": "🔍 بحث بالرقم", "en": "🔍 Search by number"},
-    "inbound_table_date_range_label": {"ar": "📅 نطاق التاريخ", "en": "📅 Date range"},
-    "inbound_table_status_label": {"ar": "الحالة", "en": "Status"},
+    "inbound_table_date_range_label": {"ar": "نطاق التاريخ", "en": "Date range"},
     "inbound_table_details_label": {"ar": "التفاصيل", "en": "Details"},
     "inbound_table_group_toggle": {"ar": "دمج الأرقام المكررة", "en": "Merge duplicate numbers"},
     "inbound_table_showing": {"ar": "عرض {shown} من {total}", "en": "Showing {shown} of {total}"},
