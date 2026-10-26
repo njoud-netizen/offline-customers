@@ -57,6 +57,7 @@ def inbound_call_page() -> None:
                     KPICardData(label=t("inbound_metric_with_details", lang), value=f"{summary.get('صفوف تم استخراج Details لها', 0):,}", icon="📝", accent=True),
                     KPICardData(label=t("inbound_metric_review", lang), value=f"{summary.get('صفوف تحتاج مراجعة يدوية', 0):,}", icon="⚠️"),
                     KPICardData(label=t("inbound_metric_brands", lang), value=f"{summary.get('براندات تم حلّها', 0):,}", icon="🏢"),
+                    KPICardData(label=t("inbound_metric_complaints", lang), value=f"{summary.get('شكاوى وزارة التجارة المحتملة', 0):,}", icon="🚨"),
                 ]
             )
 
@@ -65,7 +66,14 @@ def inbound_call_page() -> None:
             if df_rows.empty:
                 render_empty_state(t("inbound_warning_no_rows", lang))
             else:
-                st.dataframe(df_rows, use_container_width=True, hide_index=True)
+                flags = result.highlight_flags
+                if flags and any(flags):
+                    def _highlight_row(row):
+                        is_flagged = flags[row.name] if row.name < len(flags) else False
+                        return ["background-color: #ffc7ce; color: #9c0006;" if is_flagged else "" for _ in row]
+                    st.dataframe(df_rows.style.apply(_highlight_row, axis=1), use_container_width=True, hide_index=True)
+                else:
+                    st.dataframe(df_rows, use_container_width=True, hide_index=True)
 
             if result.needs_review:
                 with st.expander(f"{t('inbound_expander_review', lang)} ({len(result.needs_review)})"):

@@ -206,6 +206,7 @@ TRANSLATIONS = {
     "inbound_metric_with_details": {"ar": "صفوف فيها تفاصيل مستخرجة", "en": "Rows with extracted details"},
     "inbound_metric_review": {"ar": "تحتاج مراجعة يدوية", "en": "Need manual review"},
     "inbound_metric_brands": {"ar": "براندات تم حلّها", "en": "Brands resolved"},
+    "inbound_metric_complaints": {"ar": "شكاوى وزارة التجارة المحتملة", "en": "Possible Ministry of Commerce complaints"},
 
     "inbound_subheader_results": {"ar": "نتائج الاستخراج", "en": "Extraction Results"},
     "inbound_expander_review": {"ar": "⚠️ صفوف تحتاج مراجعة يدوية", "en": "⚠️ Rows needing manual review"},

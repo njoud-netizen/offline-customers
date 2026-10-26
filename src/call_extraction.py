@@ -37,6 +37,10 @@ def _build_prompt(batch: list, details_catalog: list[str]) -> str:
 {catalog_text}
    إذا لم تنطبق أي قيمة من القائمة على محتوى المكالمة، استخدم القيمة الحرفية "Other" فقط
    (بدون أي نص آخر بحقل details)، وضع اقتراحك القصير بحقل details_suggested.
+   استثناء: إذا كان المتصل هو من يعرض خدمات على الشركة (تسويق، إدارة سوشيال ميديا، إعلانات)
+   وليس عميل يسأل عن منتج، استخدم القيمة "Advertisement" مباشرة.
+4. flag_commerce_complaint: true فقط إذا ذكر العميل صراحة شكوى أو تهديد بشكوى لوزارة التجارة
+   أو جهة حماية المستهلك أو إجراء قانوني ضد الشركة؛ وإلا false.
 
 مهم جدًا: لا تخترع قيمة details غير موجودة حرفيًا بالقائمة أعلاه — فقط قيمة من القائمة أو "Other".
 
@@ -45,7 +49,7 @@ def _build_prompt(batch: list, details_catalog: list[str]) -> str:
 
 أرجع فقط JSON array صالح (بدون أي نص إضافي قبله أو بعده، وبدون code fences)، كل عنصر بهذا
 الشكل بالضبط:
-{{"id": "...", "customer_name": "...", "city": "...", "details": "...", "details_suggested": "..."}}
+{{"id": "...", "customer_name": "...", "city": "...", "details": "...", "details_suggested": "...", "flag_commerce_complaint": false}}
 """
 
 
@@ -88,6 +92,7 @@ def extract_batch(client, model: str, batch: list, details_catalog: list[str]) -
             "city": str(item.get("city", "")).strip(),
             "details": details,
             "details_suggested": str(item.get("details_suggested", "")).strip(),
+            "flag_commerce_complaint": bool(item.get("flag_commerce_complaint", False)),
         }
     return result
 

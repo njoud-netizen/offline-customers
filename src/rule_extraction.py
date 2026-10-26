@@ -81,6 +81,24 @@ def is_vendor_service_pitch(summary: str) -> bool:
     return any(signal in text_lower for signal in _VENDOR_PITCH_SIGNALS)
 
 
+# قاعدة عمل خاصة (طلب المستخدم): مكالمة فيها إشارة لشكوى/تهديد بشكوى لوزارة التجارة (أو جهة
+# حماية المستهلك) تُعلَّم بعلم خاص — تظهر بقائمة "تحتاج مراجعة" وتُلوَّن صفها بالأحمر بملف
+# الإخراج، بغض النظر عن تصنيف Details، لأنها حالة حساسة تحتاج انتباه فوري من الموظفة.
+_COMMERCE_COMPLAINT_SIGNALS = [
+    "ministry of commerce", "commerce ministry", "consumer protection",
+    "file a complaint with the ministry", "report to the ministry",
+    "threatened to file a complaint", "threatened to report",
+    "threatened to complain", "escalate to the ministry",
+    "ministry of commerce and investment", "consumer protection authority",
+    "threatened legal action", "legal action against the company",
+]
+
+
+def is_commerce_complaint(summary: str) -> bool:
+    text_lower = summary.lower()
+    return any(signal in text_lower for signal in _COMMERCE_COMPLAINT_SIGNALS)
+
+
 def classify_details(summary: str, details_catalog: list[str]) -> str:
     """
     يختار أقرب قيمة من details_catalog: تطابق تام للعبارة كـ substring يُفضَّل دومًا؛ وإلا يُشترط
@@ -157,6 +175,7 @@ def extract_call_fields_rule_based(
             "city": city,
             "details": details,
             "details_suggested": "",
+            "flag_commerce_complaint": is_commerce_complaint(r.call_summary),
         }
         processed += 1
 

@@ -19,6 +19,7 @@ class InboundImportResult:
     needs_review: list = field(default_factory=list)  # {"call_id","number","reason","call_summary"}
     summary: dict = field(default_factory=dict)
     output_path: "str | None" = None
+    highlight_flags: list = field(default_factory=list)  # بنفس طول/ترتيب rows — True = شكوى محتملة
 
 
 def _format_date(dt) -> str:
@@ -67,15 +68,22 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
     needs_review = []
     resolved_companies = set()
     rows_with_details = 0
+    highlight_flags = []  # نفس طول rows — True = شكوى محتملة لوزارة التجارة -> يُلوَّن أحمر بالإكسل
+    complaint_count = 0
 
     for r in records:
         fields = extracted.get(r.call_id, {})
         name = fields.get("customer_name", "")
         details = fields.get("details", "")
+        is_complaint = bool(fields.get("flag_commerce_complaint", False))
         if details:
             rows_with_details += 1
+        if is_complaint:
+            complaint_count += 1
 
         review_reasons = []
+        if is_complaint:
+            review_reasons.append("⚠️ شكوى محتملة لوزارة التجارة — تحتاج انتباه فوري")
         if not r.customer_phone.valid:
             review_reasons.append(f"رقم غير صالح ({r.customer_phone.reason})")
         if r.brand_raw and not r.canonical_company:
@@ -111,6 +119,7 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
             "Show Room": "",
         }
         rows.append({col: row.get(col, "") for col in columns})  # ترتيب حرفي مضمون لملف الإخراج
+        highlight_flags.append(is_complaint)
 
         if review_reasons:
             needs_review.append({
@@ -127,9 +136,13 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
         "صفوف تم استخراج Details لها": rows_with_details,
         "براندات تم حلّها": len(resolved_companies),
         "صفوف تحتاج مراجعة يدوية": len(needs_review),
+        "شكاوى وزارة التجارة المحتملة": complaint_count,
     }
 
     progress("كتابة ملف الإخراج (Excel)...")
-    output_path = write_inbound_report(_resolve_output_dir(cfg), rows, columns)
+    output_path = write_inbound_report(_resolve_output_dir(cfg), rows, columns, highlight_flags)
 
-    return InboundImportResult(rows=rows, needs_review=needs_review, summary=summary, output_path=output_path)
+    return InboundImportResult(
+        rows=rows, needs_review=needs_review, summary=summary,
+        output_path=output_path, highlight_flags=highlight_flags,
+    )
