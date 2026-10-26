@@ -247,6 +247,8 @@ TRANSLATIONS = {
     "inbound_header_search_label": {"ar": "بحث برقم الجوال", "en": "Search by phone number"},
     "inbound_header_search_placeholder": {"ar": "مثال: 0505749725", "en": "e.g. 0505749725"},
     "inbound_header_company_label": {"ar": "الشركة", "en": "Company"},
+    "inbound_company_multiselect_label": {"ar": "الشركات", "en": "Companies"},
+    "inbound_company_multiselect_placeholder": {"ar": "اختر شركة", "en": "Select a company"},
     "inbound_filter_all_companies": {"ar": "كل الشركات", "en": "All companies"},
     "inbound_phone_banner_found": {
         "ar": "هذا الرقم اتصل {count} مرات · آخر اتصال: {date} · الشركة: {company}",
@@ -287,6 +289,8 @@ TRANSLATIONS = {
     "inbound_insight_calls_reason": {"ar": "مكالمات اليوم، السبب: {reason}", "en": "Today's calls, reason: {reason}"},
     "inbound_insight_call_count": {"ar": "{count} مكالمة", "en": "{count} calls"},
     "inbound_insight_called_times": {"ar": "اتصل {count} مرات", "en": "Called {count} times"},
+    "inbound_called_once": {"ar": "اتصل مرة وحدة", "en": "Called once"},
+    "inbound_called_twice": {"ar": "اتصل مرتين", "en": "Called twice"},
     "inbound_call_direction_inbound": {"ar": "واردة", "en": "Inbound"},
 
     "inbound_table_date_range_label": {"ar": "نطاق التاريخ", "en": "Date range"},

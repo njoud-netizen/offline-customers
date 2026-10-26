@@ -48,31 +48,19 @@ def normalize_phone(raw: str) -> str:
     return digits
 
 
-COMPANY_ALL_VALUE = ""  # قيمة داخلية ثابتة (غير مترجمة) لخيار "كل الشركات"
-
-# فلتر الشركة له ودجتان منفصلتان (الهيدر + بطاقة "المكالمات حسب الشركة") تتزامنان ببعض عبر
-# callbacks — Streamlit يمنع استخدام نفس الـkey لودجتين، فكل واحدة تاخذ key مستقل وتكتب
-# بقيمتها الجديدة بمفتاح الثانية فور التغيير (on_change يشتغل قبل إعادة تشغيل السكربت من
-# الأول، فتوصل القيمة المتزامنة قبل ما تُرسم أي ودجت بنفس التشغيلة التالية).
-HEADER_COMPANY_KEY = "inbound_header_company_filter"
-CARD_COMPANY_KEY = "inbound_insight_company_select"
+COMPANY_MULTISELECT_KEY = "inbound_company_multiselect"
 
 
-def ensure_company_filter_defaults() -> None:
-    """تهيئة أولى لمفتاحي فلتر الشركة (مرة وحدة، أول تشغيلة) — بدون هذا لن تتفق الودجتان
-    على نفس القيمة الافتراضية ("كل الشركات") عند أول ظهور للصفحة."""
-    if HEADER_COMPANY_KEY not in st.session_state:
-        st.session_state[HEADER_COMPANY_KEY] = COMPANY_ALL_VALUE
-    if CARD_COMPANY_KEY not in st.session_state:
-        st.session_state[CARD_COMPANY_KEY] = COMPANY_ALL_VALUE
-
-
-def sync_company_from_header() -> None:
-    st.session_state[CARD_COMPANY_KEY] = st.session_state[HEADER_COMPANY_KEY]
-
-
-def sync_company_from_card() -> None:
-    st.session_state[HEADER_COMPANY_KEY] = st.session_state[CARD_COMPANY_KEY]
+def get_top_company(rows: list[dict]) -> str:
+    """أعلى شركة (الأكثر تكرارًا) بكامل الصفوف — تُستخدم كاختيار افتراضي وحيد لـ
+    st.multiselect الشركات أول ما يُرفع الملف (قبل أي تفاعل من المستخدم)."""
+    df = pd.DataFrame(rows)
+    if df.empty or "company" not in df.columns:
+        return ""
+    non_empty = df["company"][df["company"].astype(str).str.strip() != ""]
+    if non_empty.empty:
+        return ""
+    return str(non_empty.value_counts().index[0])
 
 
 def _call_type_html(value: str, lang: str) -> str:
@@ -128,9 +116,9 @@ def _apply_filter_mask(df: pd.DataFrame, state: dict) -> pd.DataFrame:
     """لا فلترة على عمود الحالة إطلاقًا (حُذف الفلتر بالكامل حسب الطلب) — عمود "حالة
     المكالمة" بالجدول يبقى كما هو دائمًا بغض النظر عن باقي الفلاتر."""
     mask = pd.Series(True, index=df.index)
-    company_filter = state.get("company_filter", COMPANY_ALL_VALUE)
-    if company_filter and company_filter != COMPANY_ALL_VALUE:
-        mask &= df.get("company", "").astype(str) == company_filter
+    company_filter = state.get("company_filter")  # قائمة شركات أو None/[] = بدون فلترة (الكل)
+    if company_filter:
+        mask &= df.get("company", "").astype(str).isin(company_filter)
     phone_search = state.get("phone_search", "")
     if phone_search:
         target = normalize_phone(phone_search)
@@ -147,12 +135,12 @@ def _apply_filter_mask(df: pd.DataFrame, state: dict) -> pd.DataFrame:
 
 
 def compute_filtered(
-    rows: list[dict], lang: str, company_filter: str = "", phone_search: str = "",
+    rows: list[dict], lang: str, company_filter: list[str] | None = None, phone_search: str = "",
 ) -> tuple[pd.DataFrame, bool, dict, pd.DataFrame]:
-    """يرجع (filtered_df, group_enabled, filter_state, df_with_date). company_filter/
-    phone_search تُمرَّر مباشرة (قيمتاهما الفعلية من ودجتات الهيدر اللي تُرسم *قبل* هذا
-    الاستدعاء بنفس التشغيلة) — بعكس التاريخ/التفاصيل/الدمج اللي تُقرأ من session_state لأن
-    ودجتاتها ترسم لاحقًا فوق الجدول (راجع render_filter_toolbar أدناه لموضعها الصحيح)."""
+    """يرجع (filtered_df, group_enabled, filter_state, df_with_date). company_filter: قائمة
+    أسماء شركات (None أو [] = بدون فلترة، كل الشركات) — تُمرَّر مباشرة من القراءة المبكرة
+    لـsession_state بصفحة ان باوند (قبل رسم ودجت multiselect الشركات الفعلي، نفس أسلوب
+    التاريخ/التفاصيل أدناه). phone_search كذلك تُمرَّر مباشرة من ودجت البحث بالهيدر."""
     df = pd.DataFrame(rows)
     if df.empty:
         return df, False, {}, df

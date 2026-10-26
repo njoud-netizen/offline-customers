@@ -583,81 +583,43 @@ def inject_theme(lang: str) -> None:
             background: {BADGE_SERVICED_DOT};
         }}
 
-        /* ==== بطاقات الأبرز (Insight Cards) ====
-        استثناء مقصود: حالة "كل الشركات" تستخدم مفتاح حاوية مختلف (..._flat) عن حالة اختيار
-        شركة محددة (..._stretch) — بايثون يقرر أي مفتاح يُستخدم حسب session_state *قبل* فتح
-        الحاوية (نفس أسلوب القراءة المبكرة المستخدم بالملف لفلاتر التاريخ/التفاصيل). القواعد
-        المشتركة (margin) تستهدف البادئة العامة؛ الـstretch/الـflex-start كل وحدة بمفتاحها. */
-        div[class*="st-key-maz_insights_row_wrap"] {{ margin-bottom: 20px; }}
-        /* ملاحظة specificity: نضيف وسم div صراحةً لكل [data-testid] (حتى بالوسيط العام) كي
-        تبقى هذي القواعد أقوى حتمًا من أي نسخة سابقة مخزّنة بذاكرة المتصفح لنفس البادئة
-        العامة "maz_insights_row_wrap" أثناء فترة انتقال النشر (specificity أعلى بدل الاعتماد
-        على ترتيب الظهور بالـcascade وحده). */
-        div[class*="st-key-maz_insights_row_wrap_flat"] div[data-testid="stHorizontalBlock"] {{
-            align-items: flex-start !important;
-        }}
-        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stHorizontalBlock"] {{
-            align-items: stretch !important;
-        }}
-        /* سلسلة height:100% (حالة stretch فقط) من stColumn لين محتوى كل بطاقة — بروابط مباشرة
-        (>) فقط لا descendant عام، حتى ما تنكسر بطاقات تحتوي ودجتات حقيقية متعددة (بطاقة فلتر
-        الشركة: عدة stElementContainer متجاورة، كل وحدة لعنصر مستقل). */
-        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"] {{
-            height: 100% !important;
-        }}
-        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"] {{
-            height: 100% !important;
-        }}
-        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"] > div[data-testid="stMarkdown"],
-        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"] > div[data-testid="stMarkdown"] > div[data-testid="stMarkdownContainer"],
-        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"] > div[data-testid="stVerticalBlock"] {{
-            height: 100% !important;
-        }}
-        div[class*="st-key-maz_insights_row_wrap_stretch"] .maz-insight-card,
-        div[class*="st-key-maz_insights_row_wrap_stretch"] div[class*="st-key-maz_card_company_insight"] {{
-            height: 100% !important;
-            box-sizing: border-box !important;
+        /* ==== بطاقات الأبرز (Insight Cards) — CSS Grid بدل st.columns/st.container ====
+        الثلاث بطاقات الآن HTML خام واحد (st.markdown وحيد) داخل .maz-insights-grid. Grid مع
+        align-items:stretch يجعلها بنفس الارتفاع تلقائيًا بكل الحالات (المرجع = أطول بطاقة)
+        من دون أي حاجة لسلاسل height:100% عبر DOM الـStreamlit (كانت هشّة وتحتاج specificity
+        hacks بالحل القديم). لا overflow:hidden ولا height ثابت على .maz-insight-card —
+        المحتوى يتمدد بحرية والكرت يتبع. */
+        .maz-insights-grid {{
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 20px;
+            align-items: stretch;
+            margin-bottom: 20px;
         }}
         .maz-insight-card {{
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 20px;
-            overflow: hidden;
-            padding: 16px 18px;
+            padding: 24px;
             box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }}
-        /* بطاقة "المكالمات حسب الشركة" — تحتوي ودجت st.selectbox حقيقي فنستخدم st.container(key=)
-        بدل .maz-insight-card الخام (نفس قاعدة "الأشرطة البيضاء الفاضية" الموثّقة بالملف). */
-        div[class*="st-key-maz_card_company_insight"] {{
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            overflow: hidden;
-            padding: 16px 18px;
-            box-sizing: border-box;
-        }}
-        div[class*="st-key-maz_card_company_insight"] [data-testid="stSelectbox"] {{ margin: 8px 0 16px 0; }}
-        /* قائمة "كل الشركات" المنسدلة — إطار/زوايا/ارتفاع/خلفية محددة صراحةً */
-        div[class*="st-key-maz_card_company_insight"] [data-baseweb="select"] > div {{
+        /* ودجت multiselect الشركات (فوق البطاقات، جنب عنوان "أبرز المؤشرات") */
+        div[class*="st-key-maz_company_multiselect"] [data-baseweb="select"] > div {{
             border: 1px solid {PURPLE_100} !important;
             border-radius: 12px !important;
-            min-height: 44px !important;
-            background: {PURPLE_50} !important;
-        }}
-        /* زر نصي "عرض الكل/عرض أقل" — بدون خلفية/حدود، لون {PRIMARY_ACTION} فقط */
-        div[class*="st-key-inbound_company_toggle_btn"] button {{
-            background: transparent !important;
-            border: none !important;
+            background: {WHITE} !important;
             box-shadow: none !important;
-            color: {PRIMARY_ACTION} !important;
-            font-weight: 600;
-            font-size: 0.85rem;
-            min-height: auto !important;
-            padding: 6px 0 !important;
-            margin-top: 4px;
         }}
-        div[class*="st-key-inbound_company_toggle_btn"] button:hover {{
-            text-decoration: underline;
+        div[class*="st-key-maz_company_multiselect"] [data-baseweb="tag"] {{
+            background: {PURPLE_100} !important;
+            border: none !important;
+            border-radius: 999px !important;
+        }}
+        div[class*="st-key-maz_company_multiselect"] [data-baseweb="tag"] span {{
+            color: {PRIMARY_ACTION} !important;
         }}
         /* أيقونات موحّدة بالكامل (بدون تمييز لوني لكل بطاقة) — {ICON_TILE_COLOR} داخل مربع
         {ICON_TILE_BG} بزوايا 12px، حسب الطلب الصريح. */
@@ -673,7 +635,7 @@ def inject_theme(lang: str) -> None:
             margin-bottom: 10px;
         }}
         .maz-insight-icon-tile .material-symbols-outlined {{ color: {ICON_TILE_COLOR}; font-size: 20px; }}
-        .maz-insight-label {{ color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 4px; }}
+        .maz-insight-label {{ color: {TEXT_MUTED}; font-size: 15px; margin-bottom: 4px; }}
         .maz-insight-value {{
             color: {TEXT_PRIMARY};
             font-weight: 700;
