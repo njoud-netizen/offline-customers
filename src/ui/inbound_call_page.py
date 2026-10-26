@@ -36,6 +36,20 @@ def _icon_tile(name: str) -> str:
     return f'<span class="maz-kpi-icon-tile"><span class="material-symbols-outlined">{name}</span></span>'
 
 
+# تصحيحات عرض فقط لأسماء أسباب معروفة بخطأ إملائي/تنسيق بالبيانات المصدرية — لا تغيّر أي
+# شيء بالتجميع/الفلترة نفسها (يُطبَّق على نص العرض فقط، بعد الفرز والعدّ).
+_REASON_DISPLAY_FIXES = {
+    "jeddah branche": "Jeddah Branch",
+}
+
+
+def _display_reason_name(raw) -> str:
+    key = str(raw).strip().lower()
+    if key in _REASON_DISPLAY_FIXES:
+        return _REASON_DISPLAY_FIXES[key]
+    return str(raw).strip().title()
+
+
 def _top_value_insight(series: pd.Series) -> tuple[str, int, float]:
     """يرجع (القيمة الأكثر تكرارًا, عددها, نسبتها من إجمالي الصفوف غير الفاضية)."""
     non_empty = series[series.astype(str).str.strip() != ""]
@@ -82,34 +96,30 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str, selected_company
                 unsafe_allow_html=True,
             )
 
-        # ==== أكثر سبب اتصال (Details) — بدون عنوان كبير مكرر، قائمة أسباب + شريط فقط ====
+        # ==== أكثر سبب اتصال (Details) — أعلى 3 أسباب، الشريط نسبي لأعلى سبب (100%) ====
         with col2:
             details_series = filtered_df.get("Details", pd.Series(dtype=str))
             non_empty_details = details_series[details_series.astype(str).str.strip() != ""]
-            empty_details_count = len(details_series) - len(non_empty_details)
             top3 = non_empty_details.value_counts().head(3)
+            max_count = int(top3.iloc[0]) if not top3.empty else 0
 
             bars_html = ""
             for idx, (value, cnt) in enumerate(top3.items()):
-                pct_of_total = (cnt / len(non_empty_details) * 100) if len(non_empty_details) else 0
+                pct_of_max = (cnt / max_count * 100) if max_count else 0
                 fill_class = "maz-reason-fill" if idx == 0 else "maz-reason-fill-secondary"
                 bars_html += (
                     f'<div class="maz-reason-row">'
                     f'<div class="maz-reason-label-row">'
-                    f'<span title="{value}">{str(value).strip().capitalize()}</span><span>{cnt}</span>'
+                    f'<span title="{value}">{_display_reason_name(value)}</span><span>{cnt}</span>'
                     f'</div>'
-                    f'<div class="maz-reason-track"><div class="{fill_class}" style="width:{pct_of_total:.0f}%;"></div></div>'
+                    f'<div class="maz-reason-track"><div class="{fill_class}" style="width:{pct_of_max:.0f}%;"></div></div>'
                     f"</div>"
                 )
-            no_reason_line = (
-                f'<div class="maz-reason-empty-line">{t("inbound_insight_no_reason", lang).format(count=empty_details_count)}</div>'
-                if empty_details_count else ""
-            )
             st.markdown(
                 f'<div class="maz-insight-card">'
                 f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">forum</span></div>'
                 f'<div class="maz-insight-label">{t("inbound_insight_top_reason", lang)}</div>'
-                f"{bars_html}{no_reason_line}"
+                f"{bars_html}"
                 f"</div>",
                 unsafe_allow_html=True,
             )

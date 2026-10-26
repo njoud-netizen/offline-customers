@@ -626,7 +626,7 @@ def inject_theme(lang: str) -> None:
             font-family: 'IBM Plex Sans Arabic', sans-serif;
         }}
         .maz-insight-meta {{ color: {TEXT_MUTED}; font-size: 14px; margin-top: 4px; }}
-        .maz-reason-row {{ margin-top: 12px; }}
+        .maz-reason-row {{ margin-top: 14px; }}
         .maz-reason-label-row {{
             display: flex;
             align-items: center;
@@ -635,16 +635,9 @@ def inject_theme(lang: str) -> None:
             color: var(--text-secondary);
             margin-bottom: 4px;
         }}
-        .maz-reason-track {{ width: 100%; height: 6px; border-radius: 999px; background: {PURPLE_50}; overflow: hidden; }}
+        .maz-reason-track {{ width: 100%; height: 8px; border-radius: 999px; background: {PURPLE_50}; overflow: hidden; }}
         .maz-reason-fill {{ height: 100%; border-radius: 999px; background: {PURPLE_400}; }}
         .maz-reason-fill-secondary {{ height: 100%; border-radius: 999px; background: {PURPLE_200}; }}
-        .maz-reason-empty-line {{
-            color: {TEXT_MUTED};
-            font-size: 13px;
-            margin-top: 12px;
-            padding-top: 8px;
-            border-top: 1px solid {STEP_CARD_BORDER};
-        }}
 
         /* ==== نقطة الحالة بشارة "تمت الخدمة" ==== */
         .maz-status-dot {{
