@@ -39,6 +39,10 @@ def _icon_tile(name: str) -> str:
     return f'<span class="maz-kpi-icon-tile"><span class="material-symbols-outlined">{name}</span></span>'
 
 
+_COMPANY_LIST_TOP_N = 4
+_COMPANY_LIST_EXPANDED_KEY = "inbound_company_list_expanded"
+
+
 # تصحيحات عرض فقط لأسماء أسباب معروفة بخطأ إملائي/تنسيق بالبيانات المصدرية — لا تغيّر أي
 # شيء بالتجميع/الفلترة نفسها (يُطبَّق على نص العرض فقط، بعد الفرز والعدّ).
 _REASON_DISPLAY_FIXES = {
@@ -105,8 +109,13 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str, company_options:
                     non_empty_companies = company_series[company_series.astype(str).str.strip() != ""]
                     company_counts = non_empty_companies.value_counts()
                     max_count = int(company_counts.iloc[0]) if not company_counts.empty else 0
+
+                    show_all = st.session_state.get(_COMPANY_LIST_EXPANDED_KEY, False)
+                    hidden_count = max(0, len(company_counts) - _COMPANY_LIST_TOP_N)
+                    visible_counts = company_counts if show_all else company_counts.head(_COMPANY_LIST_TOP_N)
+
                     bars_html = ""
-                    for idx, (value, cnt) in enumerate(company_counts.items()):
+                    for idx, (value, cnt) in enumerate(visible_counts.items()):
                         pct_of_max = (cnt / max_count * 100) if max_count else 0
                         fill_class = "maz-reason-fill" if idx == 0 else "maz-reason-fill-secondary"
                         bars_html += (
@@ -118,6 +127,15 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str, company_options:
                             f"</div>"
                         )
                     st.markdown(bars_html or '<div class="maz-insight-meta">—</div>', unsafe_allow_html=True)
+
+                    if hidden_count > 0:
+                        btn_label = (
+                            t("inbound_show_less_companies", lang) if show_all
+                            else t("inbound_show_all_companies", lang).format(count=hidden_count)
+                        )
+                        if st.button(btn_label, key="inbound_company_toggle_btn"):
+                            st.session_state[_COMPANY_LIST_EXPANDED_KEY] = not show_all
+                            st.rerun()
 
         # ==== أكثر سبب اتصال (Details) — أعلى 3 أسباب، الشريط نسبي لأعلى سبب (100%) ====
         with col2:

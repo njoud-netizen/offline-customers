@@ -254,6 +254,8 @@ TRANSLATIONS = {
     },
     "inbound_phone_banner_not_found": {"ar": "ما فيه مكالمات من هذا الرقم", "en": "No calls from this number"},
     "inbound_insight_company_share": {"ar": "حصة الشركة", "en": "Company share"},
+    "inbound_show_all_companies": {"ar": "عرض الكل ({count})", "en": "Show all ({count})"},
+    "inbound_show_less_companies": {"ar": "عرض أقل", "en": "Show less"},
 
     # ==== منطقة الرفع المحسّنة (كل الصفحات) ====
     "upload_drag_here": {"ar": "اسحب الملف هنا", "en": "Drag file here"},

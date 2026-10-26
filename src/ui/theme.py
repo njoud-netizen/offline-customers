@@ -621,7 +621,29 @@ def inject_theme(lang: str) -> None:
             height: 100% !important;
             box-sizing: border-box !important;
         }}
-        div[class*="st-key-maz_card_company_insight"] [data-testid="stSelectbox"] {{ margin: 8px 0 4px 0; }}
+        div[class*="st-key-maz_card_company_insight"] [data-testid="stSelectbox"] {{ margin: 8px 0 16px 0; }}
+        /* قائمة "كل الشركات" المنسدلة — إطار/زوايا/ارتفاع/خلفية محددة صراحةً */
+        div[class*="st-key-maz_card_company_insight"] [data-baseweb="select"] > div {{
+            border: 1px solid {PURPLE_100} !important;
+            border-radius: 12px !important;
+            min-height: 44px !important;
+            background: {PURPLE_50} !important;
+        }}
+        /* زر نصي "عرض الكل/عرض أقل" — بدون خلفية/حدود، لون {PRIMARY_ACTION} فقط */
+        div[class*="st-key-inbound_company_toggle_btn"] button {{
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: {PRIMARY_ACTION} !important;
+            font-weight: 600;
+            font-size: 0.85rem;
+            min-height: auto !important;
+            padding: 6px 0 !important;
+            margin-top: 4px;
+        }}
+        div[class*="st-key-inbound_company_toggle_btn"] button:hover {{
+            text-decoration: underline;
+        }}
         /* أيقونات موحّدة بالكامل (بدون تمييز لوني لكل بطاقة) — {ICON_TILE_COLOR} داخل مربع
         {ICON_TILE_BG} بزوايا 12px، حسب الطلب الصريح. */
         .maz-insight-icon-tile {{
@@ -651,12 +673,13 @@ def inject_theme(lang: str) -> None:
             font-family: 'IBM Plex Sans Arabic', sans-serif;
         }}
         .maz-insight-meta {{ color: {TEXT_MUTED}; font-size: 14px; margin-top: 4px; }}
-        .maz-reason-row {{ margin-top: 10px; }}
+        .maz-reason-row {{ margin-top: 12px; }}
+        .maz-reason-row:first-child {{ margin-top: 0; }}
         .maz-reason-label-row {{
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 0.8rem;
+            font-size: 15px;
             color: var(--text-secondary);
             margin-bottom: 6px;
         }}
