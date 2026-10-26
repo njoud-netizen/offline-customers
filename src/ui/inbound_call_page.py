@@ -21,13 +21,20 @@ from src.translations import t
 from .empty_state import render_empty_state
 from .header import render_footer, render_page_header, render_results_header
 from .inbound_table import (
-    COMPANY_MULTISELECT_KEY,
+    COMPANY_MODE_ALL,
+    COMPANY_MODE_TOP,
+    COMPANY_SELECT_KEY,
+    NUMBER_MODE_TOP,
+    NUMBER_SELECT_KEY,
+    REASON_MODE_ALL,
+    REASON_MODE_BOTTOM,
+    REASON_MODE_TOP,
+    REASON_SELECT_KEY,
     compute_filtered,
-    get_company_options,
-    get_top_company,
     phone_search_summary,
     render_filter_toolbar,
     render_table_body,
+    resolve_insight_state,
 )
 from .kpi_card import KPICardData, render_kpi_row
 from .phone_format import format_phone_display
@@ -50,18 +57,6 @@ def _display_reason_name(raw) -> str:
     if key in _REASON_DISPLAY_FIXES:
         return _REASON_DISPLAY_FIXES[key]
     return str(raw).strip().title()
-
-
-def _top_value_insight(series: pd.Series) -> tuple[str, int, float]:
-    """يرجع (القيمة الأكثر تكرارًا, عددها, نسبتها من إجمالي الصفوف غير الفاضية)."""
-    non_empty = series[series.astype(str).str.strip() != ""]
-    if non_empty.empty:
-        return "", 0, 0.0
-    counts = non_empty.value_counts()
-    top_value = counts.index[0]
-    top_count = int(counts.iloc[0])
-    pct = (top_count / len(non_empty)) * 100 if len(non_empty) else 0.0
-    return str(top_value), top_count, pct
 
 
 def _format_called_times(count: int, lang: str) -> str:
@@ -93,68 +88,158 @@ def _ranked_bars_html(counts: "pd.Series[int]", display_fn=str) -> str:
     return "".join(rows)
 
 
-def _render_insight_section(
-    filtered_df: pd.DataFrame, lang: str, company_options: list[str], top_company: str,
-) -> None:
-    """صف "أبرز المؤشرات": عنوان + st.multiselect الشركات (ودجتان حقيقيتان فوق)، ثم البطاقات
-    الثلاث كـHTML خام واحد داخل CSS Grid (لا st.columns) — Grid مع align-items:stretch يجعل
-    الثلاث بنفس الارتفاع تلقائيًا بكل الحالات، بدون أي حيلة DOM/CSS إضافية."""
-    col_title, col_multiselect = st.columns([1, 2])
-    with col_title:
-        st.markdown(f'<p class="maz-card-title" style="margin:10px 0 0 0;">{t("inbound_insights_title", lang)}</p>', unsafe_allow_html=True)
-    with col_multiselect:
-        with st.container(key="maz_company_multiselect"):
-            st.multiselect(
-                t("inbound_company_multiselect_label", lang),
-                options=company_options,
-                default=[top_company] if top_company else [],
-                placeholder=t("inbound_company_multiselect_placeholder", lang),
-                key=COMPANY_MULTISELECT_KEY,
-                label_visibility="collapsed",
+def _company_option_label(value: str, lang: str) -> str:
+    if value == COMPANY_MODE_TOP:
+        return t("inbound_select_company_top", lang)
+    if value == COMPANY_MODE_ALL:
+        return t("inbound_filter_all_companies", lang)
+    return value
+
+
+def _reason_option_label(value: str, lang: str) -> str:
+    if value == REASON_MODE_TOP:
+        return t("inbound_select_reason_top", lang)
+    if value == REASON_MODE_BOTTOM:
+        return t("inbound_select_reason_bottom", lang)
+    if value == REASON_MODE_ALL:
+        return t("inbound_select_reason_all", lang)
+    return _display_reason_name(value)
+
+
+def _number_option_label(value: str, counts: "pd.Series[int]", lang: str) -> str:
+    if value == NUMBER_MODE_TOP:
+        return t("inbound_insight_top_number", lang)
+    count = int(counts.get(value, 0))
+    return t("inbound_number_option_format", lang).format(number=format_phone_display(value), count=count)
+
+
+def _company_card_body(state: dict, lang: str) -> str:
+    choice = state["company_choice"]
+    if choice == COMPANY_MODE_ALL:
+        company_series = state["df"].get("company", pd.Series(dtype=str))
+        counts = company_series[company_series.astype(str).str.strip() != ""].value_counts()
+        return _ranked_bars_html(counts)
+    name = state["top_company"] if choice == COMPANY_MODE_TOP else choice
+    if not name:
+        return '<div class="maz-insight-meta">—</div>'
+    count = len(state["company_scoped_df"])
+    total = len(state["df"])
+    pct = (count / total * 100) if total else 0.0
+    meta = (
+        f'{t("inbound_insight_call_count", lang).format(count=count)} · '
+        f'{t("inbound_insight_of_total", lang).format(pct=f"{pct:.0f}")}'
+    )
+    return f'<div class="maz-insight-value">{name}</div><div class="maz-insight-meta">{meta}</div>'
+
+
+def _reason_card_body(state: dict, lang: str) -> str:
+    choice = state["reason_choice"]
+    if choice == REASON_MODE_ALL:
+        return _ranked_bars_html(state["reason_counts"], _display_reason_name)
+    name = state["reason_display"]
+    if not name:
+        return '<div class="maz-insight-meta">—</div>'
+    count = int(state["reason_counts"].get(name, 0))
+    total = len(state["company_scoped_df"])
+    pct = (count / total * 100) if total else 0.0
+    meta = (
+        f'{t("inbound_insight_call_count", lang).format(count=count)} · '
+        f'{t("inbound_insight_of_total", lang).format(pct=f"{pct:.0f}")}'
+    )
+    return f'<div class="maz-insight-value">{_display_reason_name(name)}</div><div class="maz-insight-meta">{meta}</div>'
+
+
+def _number_card_body(state: dict, lang: str) -> str:
+    number = state["number_display"]
+    if not number:
+        return '<div class="maz-insight-meta">—</div>'
+    count = int(state["number_counts"].get(number, 0))
+    display_number = format_phone_display(number)
+    times_text = _format_called_times(count, lang)
+
+    scoped = state["company_scoped_df"]
+    rows_for_number = scoped[scoped["Number"] == number]
+    last_date = str(rows_for_number["Date"].max()) if not rows_for_number.empty else "—"
+    company_name = "—"
+    reason_name = "—"
+    if not rows_for_number.empty:
+        nz_company = rows_for_number.get("company", pd.Series(dtype=str))
+        nz_company = nz_company[nz_company.astype(str).str.strip() != ""]
+        if not nz_company.empty:
+            company_name = str(nz_company.iloc[0])
+        nz_reason = rows_for_number.get("Details", pd.Series(dtype=str))
+        nz_reason = nz_reason[nz_reason.astype(str).str.strip() != ""]
+        if not nz_reason.empty:
+            reason_name = _display_reason_name(nz_reason.iloc[0])
+    info_line = t("inbound_last_call_info", lang).format(date=last_date, company=company_name, reason=reason_name)
+
+    return (
+        f'<div class="maz-insight-value" dir="ltr">{display_number}</div>'
+        f'<div class="maz-insight-meta">{times_text}</div>'
+        f'<div class="maz-insight-meta">{info_line}</div>'
+    )
+
+
+def _render_insight_section(state: dict, lang: str) -> None:
+    """صف "أبرز المؤشرات": عنوان + صف 3 selectbox (نفس عرض/ترتيب البطاقات، كل عمود فوق
+    بطاقته)، ثم البطاقات الثلاث كـHTML خام واحد داخل CSS Grid (لا st.columns للبطاقات نفسها)
+    — Grid مع align-items:stretch يجعلها بنفس الارتفاع تلقائيًا بكل الحالات. state من
+    resolve_insight_state (قراءة مبكرة سابقة بنفس التشغيلة) — هنا فقط نعيد رسم نفس الودجتات
+    الثلاثة بنفس المفاتيح (بدون أي إعادة حساب) ثم نبني الكروت من state الجاهز."""
+    st.markdown(f'<p class="maz-card-title" style="margin:10px 0 12px 0;">{t("inbound_insights_title", lang)}</p>', unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        with st.container(key="maz_insight_select_company"):
+            company_opts = [COMPANY_MODE_TOP, COMPANY_MODE_ALL] + state["company_options"]
+            st.selectbox(
+                t("inbound_select_company_top", lang), options=company_opts,
+                format_func=lambda v: _company_option_label(v, lang),
+                key=COMPANY_SELECT_KEY, label_visibility="collapsed",
+            )
+    with col2:
+        with st.container(key="maz_insight_select_reason"):
+            reason_opts = [REASON_MODE_TOP, REASON_MODE_BOTTOM, REASON_MODE_ALL] + state["reason_options"]
+            st.selectbox(
+                t("inbound_select_reason_top", lang), options=reason_opts,
+                format_func=lambda v: _reason_option_label(v, lang),
+                key=REASON_SELECT_KEY, label_visibility="collapsed",
+            )
+    with col3:
+        with st.container(key="maz_insight_select_number"):
+            number_opts = [NUMBER_MODE_TOP] + state["number_options"]
+            st.selectbox(
+                t("inbound_insight_top_number", lang), options=number_opts,
+                format_func=lambda v: _number_option_label(v, state["number_counts"], lang),
+                key=NUMBER_SELECT_KEY, label_visibility="collapsed",
             )
 
-    # ==== بطاقة "المكالمات حسب الشركة" — سطر لكل شركة ظاهرة بالـfiltered_df نفسه (أصلًا
-    # مفلتر حسب اختيار المستخدم أو كل الشركات لو فاضي — راجع compute_filtered بالمستدعي) ====
-    company_series = filtered_df.get("company", pd.Series(dtype=str))
-    company_counts = company_series[company_series.astype(str).str.strip() != ""].value_counts()
     company_card_html = (
         f'<div class="maz-insight-card">'
         f'<div class="maz-insight-header">'
         f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">business</span></div>'
         f'<div class="maz-insight-label">{t("inbound_insight_top_company", lang)}</div>'
         f"</div>"
-        f'<div class="maz-insight-body">{_ranked_bars_html(company_counts)}</div>'
+        f'<div class="maz-insight-body">{_company_card_body(state, lang)}</div>'
         f"</div>"
     )
-
-    # ==== بطاقة "أكثر سبب اتصال" — أعلى 3 أسباب، نفس نمط الأشرطة ====
-    details_series = filtered_df.get("Details", pd.Series(dtype=str))
-    top3_details = details_series[details_series.astype(str).str.strip() != ""].value_counts().head(3)
     reason_card_html = (
         f'<div class="maz-insight-card">'
         f'<div class="maz-insight-header">'
         f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">forum</span></div>'
         f'<div class="maz-insight-label">{t("inbound_insight_top_reason", lang)}</div>'
         f"</div>"
-        f'<div class="maz-insight-body">{_ranked_bars_html(top3_details, _display_reason_name)}</div>'
+        f'<div class="maz-insight-body">{_reason_card_body(state, lang)}</div>'
         f"</div>"
     )
-
-    # ==== بطاقة "أكثر رقم اتصل" — سطر واحد nowrap، dir=ltr، محاذاة يمين ====
-    number_series = filtered_df.get("Number", pd.Series(dtype=str))
-    number, count, _ = _top_value_insight(number_series)
-    display_number = format_phone_display(number) if number else "—"
-    number_meta = _format_called_times(count, lang) if number else ""
     number_card_html = (
         f'<div class="maz-insight-card">'
         f'<div class="maz-insight-header">'
         f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">call</span></div>'
         f'<div class="maz-insight-label">{t("inbound_insight_top_number", lang)}</div>'
         f"</div>"
-        f'<div class="maz-insight-body">'
-        f'<div class="maz-insight-value" dir="ltr">{display_number}</div>'
-        f'<div class="maz-insight-meta">{number_meta}</div>'
-        f"</div></div>"
+        f'<div class="maz-insight-body">{_number_card_body(state, lang)}</div>'
+        f"</div>"
     )
 
     st.markdown(
@@ -233,19 +318,20 @@ def inbound_call_page() -> None:
             st.success(t("inbound_success_processed", lang))
             render_empty_state(t("inbound_warning_no_rows", lang))
         else:
-            company_options = get_company_options(result.rows)
-            top_company = get_top_company(result.rows)
-            # قراءة مبكرة لاختيار الشركات (نفس أسلوب التاريخ/التفاصيل بـinbound_table.py) —
-            # ودجت multiselect الشركات نفسه يُرسم لاحقًا داخل _render_insight_section (فوق
-            # البطاقات مباشرة)، لكن الهيدر يحتاج القيمة الحالية *قبل* ذلك لزر تحميل CSV.
-            # الافتراضي [أعلى شركة] يطابق default= الممرر لاحقًا لنفس الودجت أول مرة بالضبط.
-            selected_companies = st.session_state.get(
-                COMPANY_MULTISELECT_KEY, [top_company] if top_company else [],
-            )
+            # resolve_insight_state يُستدعى هنا مبكرًا (قبل رسم أي ودجت insight فعليًا) —
+            # يقرأ اختيارات company/reason/number الحالية من session_state مباشرة (نفس أسلوب
+            # القراءة المبكرة المستخدم للتاريخ/البحث بالجولات السابقة)، فالهيدر يحصل على فلاتر
+            # الشركة/السبب/الرقم الصحيحة لزر تحميل CSV *قبل* أن تُرسم ودجتات الـselectbox
+            # فعليًا لاحقًا داخل _render_insight_section (بنفس المفاتيح، فبالتالي بنفس القيمة).
+            insight_state = resolve_insight_state(result.rows)
+            company_filter = insight_state["company_filter"]
+            reason_table_filter = insight_state["reason_table_filter"]
+            number_table_filter = insight_state["number_table_filter"]
 
             def _build_csv(phone_search: str) -> bytes:
                 csv_df, _, _, _ = compute_filtered(
-                    result.rows, lang, company_filter=selected_companies, phone_search=phone_search,
+                    result.rows, lang, company_filter=company_filter, phone_search=phone_search,
+                    reason_filter=reason_table_filter, number_filter=number_table_filter,
                 )
                 return csv_df.to_csv(index=False).encode("utf-8-sig")
 
@@ -262,7 +348,8 @@ def inbound_call_page() -> None:
                 )
 
             filtered_df, group_enabled, filter_state, df_with_date = compute_filtered(
-                result.rows, lang, company_filter=selected_companies, phone_search=phone_search,
+                result.rows, lang, company_filter=company_filter, phone_search=phone_search,
+                reason_filter=reason_table_filter, number_filter=number_table_filter,
             )
 
             phone_banner = phone_search_summary(filtered_df, phone_search)
@@ -311,7 +398,7 @@ def inbound_call_page() -> None:
                 ]
             )
 
-            _render_insight_section(filtered_df, lang, company_options, top_company)
+            _render_insight_section(insight_state, lang)
 
             render_filter_toolbar(df_with_date, filter_state, lang)
             render_table_body(len(result.rows), filtered_df, group_enabled, lang)

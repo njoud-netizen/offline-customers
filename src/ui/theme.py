@@ -606,20 +606,23 @@ def inject_theme(lang: str) -> None:
             flex-direction: column;
             gap: 12px;
         }}
-        /* ودجت multiselect الشركات (فوق البطاقات، جنب عنوان "أبرز المؤشرات") */
-        div[class*="st-key-maz_company_multiselect"] [data-baseweb="select"] > div {{
+        /* صف 3 selectbox فوق البطاقات مباشرة (الشركة/الاستفسار/الرقم) — نفس عرض/ترتيب
+        البطاقات تحتها، كل واحد فوق بطاقته. إطار 1px {PURPLE_100}، زوايا 12px، ارتفاع 44px،
+        خلفية بيضاء، والسهم ▾ الأصلي من Streamlit يبقى ظاهرًا (لا إخفاء له). */
+        div[class*="st-key-maz_insight_select_company"] [data-baseweb="select"] > div,
+        div[class*="st-key-maz_insight_select_reason"] [data-baseweb="select"] > div,
+        div[class*="st-key-maz_insight_select_number"] [data-baseweb="select"] > div {{
             border: 1px solid {PURPLE_100} !important;
             border-radius: 12px !important;
+            min-height: 44px !important;
             background: {WHITE} !important;
             box-shadow: none !important;
         }}
-        div[class*="st-key-maz_company_multiselect"] [data-baseweb="tag"] {{
-            background: {PURPLE_100} !important;
-            border: none !important;
-            border-radius: 999px !important;
-        }}
-        div[class*="st-key-maz_company_multiselect"] [data-baseweb="tag"] span {{
-            color: {PRIMARY_ACTION} !important;
+        div[class*="st-key-maz_insight_select_company"] [data-baseweb="select"] svg,
+        div[class*="st-key-maz_insight_select_reason"] [data-baseweb="select"] svg,
+        div[class*="st-key-maz_insight_select_number"] [data-baseweb="select"] svg {{
+            fill: {TEXT_MUTED} !important;
+            opacity: 1 !important;
         }}
         /* أيقونات موحّدة بالكامل (بدون تمييز لوني لكل بطاقة) — {ICON_TILE_COLOR} داخل مربع
         {ICON_TILE_BG} بزوايا 12px، حسب الطلب الصريح. */

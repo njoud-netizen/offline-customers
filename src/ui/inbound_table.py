@@ -31,8 +31,6 @@ PAGE_SIZE = 25
 _DISPLAY_COLS = ["Date", "Number", "Inbound calls/out bound calls", "Call Status", "Details"]
 _SESSION_PAGE_KEY = "inbound_table_page"
 _SESSION_SHOW_ALL_COLS_KEY = "inbound_table_show_all_cols"
-_DETAILS_ALL_VALUE = ""  # قيمة داخلية ثابتة (غير مترجمة) لخيار "الكل" بقائمة التفاصيل —
-# مستقلة عن اللغة فلا تتأثر بتبديل عربي/إنجليزي بمنتصف الجلسة (النص المعروض عبر format_func)
 
 
 def normalize_phone(raw: str) -> str:
@@ -48,12 +46,21 @@ def normalize_phone(raw: str) -> str:
     return digits
 
 
-COMPANY_MULTISELECT_KEY = "inbound_company_multiselect"
+COMPANY_SELECT_KEY = "inbound_company_select"
+REASON_SELECT_KEY = "inbound_reason_select"
+NUMBER_SELECT_KEY = "inbound_number_select"
+
+COMPANY_MODE_TOP = "__top__"
+COMPANY_MODE_ALL = "__all__"
+REASON_MODE_TOP = "__top__"
+REASON_MODE_BOTTOM = "__bottom__"
+REASON_MODE_ALL = "__all__"
+NUMBER_MODE_TOP = "__top__"
 
 
 def get_top_company(rows: list[dict]) -> str:
-    """أعلى شركة (الأكثر تكرارًا) بكامل الصفوف — تُستخدم كاختيار افتراضي وحيد لـ
-    st.multiselect الشركات أول ما يُرفع الملف (قبل أي تفاعل من المستخدم)."""
+    """أعلى شركة (الأكثر تكرارًا) بكامل الصفوف — تُستخدم كقيمة عرض لوضع 'أكثر شركة'
+    الافتراضي بقائمة فلتر الشركة أول ما يُرفع الملف."""
     df = pd.DataFrame(rows)
     if df.empty or "company" not in df.columns:
         return ""
@@ -61,6 +68,86 @@ def get_top_company(rows: list[dict]) -> str:
     if non_empty.empty:
         return ""
     return str(non_empty.value_counts().index[0])
+
+
+def resolve_insight_state(rows: list[dict]) -> dict:
+    """المصدر الوحيد لحل الفلاتر الثلاثة (شركة/استفسار/رقم) — يُستدعى *قبل* رسم أي من
+    selectbox الثلاثة (قراءة مبكرة من session_state، نفس أسلوب التاريخ بالملف) حتى يعرف
+    الهيدر/KPI قيم الفلترة الفعلية بنفس التشغيلة؛ ويُستدعى بطاقات "أبرز المؤشرات" لاحقًا
+    لعرض نفس القيم + رسم الودجتات الفعلية (إعادة قراءة نفس المفاتيح، فتبقى متوافقة دومًا).
+
+    التسلسل: الشركة تُحسم أولًا (تحدد company_scoped_df)، والاستفسار/الرقم يُحسمان *داخل*
+    نطاق الشركة فقط (حسب الطلب: بطاقتا الاستفسار والرقم "مفلترتان على الشركة")."""
+    df = pd.DataFrame(rows)
+    company_options = get_company_options(rows)
+    top_company = get_top_company(rows)
+
+    company_choice = st.session_state.get(COMPANY_SELECT_KEY, COMPANY_MODE_TOP)
+    if company_choice == COMPANY_MODE_TOP:
+        company_filter = [top_company] if top_company else []
+    elif company_choice == COMPANY_MODE_ALL:
+        company_filter = []
+    else:
+        company_filter = [company_choice]
+    company_scoped_df = (
+        df[df.get("company", "").astype(str).isin(company_filter)] if company_filter else df
+    )
+
+    details_series = company_scoped_df.get("Details", pd.Series(dtype=str))
+    reason_counts = details_series[details_series.astype(str).str.strip() != ""].value_counts()
+    reason_options = list(reason_counts.index)
+    top_reason = str(reason_counts.index[0]) if not reason_counts.empty else ""
+    bottom_reason = str(reason_counts.index[-1]) if not reason_counts.empty else ""
+
+    reason_choice = st.session_state.get(REASON_SELECT_KEY, REASON_MODE_TOP)
+    if reason_choice == REASON_MODE_TOP:
+        reason_display = top_reason
+    elif reason_choice == REASON_MODE_BOTTOM:
+        reason_display = bottom_reason
+    elif reason_choice == REASON_MODE_ALL:
+        reason_display = ""
+    else:
+        reason_display = reason_choice
+    # الجدول يتفلتر بالاستفسار فقط لو اختار المستخدم اسم استفسار محدد صراحةً (مو
+    # أكثر/أقل/الكل) — حسب الطلب الصريح.
+    reason_table_filter = (
+        reason_choice if reason_choice not in (REASON_MODE_TOP, REASON_MODE_BOTTOM, REASON_MODE_ALL) else None
+    )
+
+    number_series = company_scoped_df.get("Number", pd.Series(dtype=str))
+    non_empty_numbers = number_series[number_series.astype(str).str.strip() != ""]
+    number_counts = non_empty_numbers.value_counts()
+    repeated_numbers = number_counts[number_counts > 1]
+    number_pool_counts = repeated_numbers if not repeated_numbers.empty else number_counts
+    number_options = list(number_pool_counts.index)
+    top_number = str(number_counts.index[0]) if not number_counts.empty else ""
+
+    number_choice = st.session_state.get(NUMBER_SELECT_KEY, NUMBER_MODE_TOP)
+    number_display = top_number if number_choice == NUMBER_MODE_TOP else number_choice
+    # الجدول يتفلتر بالرقم فقط لو اختار المستخدم رقمًا محددًا صراحةً من القائمة.
+    number_table_filter = None if number_choice == NUMBER_MODE_TOP else number_choice
+
+    return {
+        "df": df,
+        "company_options": company_options,
+        "top_company": top_company,
+        "company_choice": company_choice,
+        "company_filter": company_filter,
+        "company_scoped_df": company_scoped_df,
+        "reason_options": reason_options,
+        "reason_counts": reason_counts,
+        "top_reason": top_reason,
+        "bottom_reason": bottom_reason,
+        "reason_choice": reason_choice,
+        "reason_display": reason_display,
+        "reason_table_filter": reason_table_filter,
+        "number_counts": number_counts,
+        "number_options": number_options,
+        "top_number": top_number,
+        "number_choice": number_choice,
+        "number_display": number_display,
+        "number_table_filter": number_table_filter,
+    }
 
 
 def _call_type_html(value: str, lang: str) -> str:
@@ -94,11 +181,8 @@ def _filter_state_from_session(df: pd.DataFrame) -> dict:
         min_d, max_d = valid_dates.min(), valid_dates.max()
         today = _date.today()
         date_default = (today, today) if min_d <= today <= max_d else (min_d, max_d)
-    details_options = sorted(v for v in df["Details"].dropna().unique().tolist() if str(v).strip())
     return {
         "date_filter": st.session_state.get("inbound_filter_date", date_default),
-        "details_options": details_options,
-        "details_filter": st.session_state.get("inbound_filter_details", _DETAILS_ALL_VALUE),
         "group_enabled": st.session_state.get("inbound_filter_group", False),
     }
 
@@ -124,23 +208,27 @@ def _apply_filter_mask(df: pd.DataFrame, state: dict) -> pd.DataFrame:
         target = normalize_phone(phone_search)
         if target:
             mask &= df["Number"].astype(str).apply(normalize_phone) == target
+    reason_filter = state.get("reason_filter")
+    if reason_filter:
+        mask &= df["Details"] == reason_filter
+    number_filter = state.get("number_filter")
+    if number_filter:
+        mask &= df["Number"].astype(str) == str(number_filter)
     date_filter = state["date_filter"]
     if isinstance(date_filter, tuple) and len(date_filter) == 2:
         start_d, end_d = date_filter
         mask &= df["_date_parsed"].isna() | ((df["_date_parsed"] >= start_d) & (df["_date_parsed"] <= end_d))
-    details_filter = state["details_filter"]
-    if details_filter and details_filter != _DETAILS_ALL_VALUE:
-        mask &= df["Details"] == details_filter
     return df[mask]
 
 
 def compute_filtered(
     rows: list[dict], lang: str, company_filter: list[str] | None = None, phone_search: str = "",
+    reason_filter: str | None = None, number_filter: str | None = None,
 ) -> tuple[pd.DataFrame, bool, dict, pd.DataFrame]:
     """يرجع (filtered_df, group_enabled, filter_state, df_with_date). company_filter: قائمة
-    أسماء شركات (None أو [] = بدون فلترة، كل الشركات) — تُمرَّر مباشرة من القراءة المبكرة
-    لـsession_state بصفحة ان باوند (قبل رسم ودجت multiselect الشركات الفعلي، نفس أسلوب
-    التاريخ/التفاصيل أدناه). phone_search كذلك تُمرَّر مباشرة من ودجت البحث بالهيدر."""
+    أسماء شركات (None/[] = الكل). reason_filter/number_filter: قيمة محددة واحدة أو None
+    (بدون فلترة) — تُمرَّر كلها من resolve_insight_state أعلاه (قراءة مبكرة من session_state،
+    نفس أسلوب التاريخ أدناه). phone_search تُمرَّر مباشرة من ودجت البحث بالهيدر."""
     df = pd.DataFrame(rows)
     if df.empty:
         return df, False, {}, df
@@ -148,6 +236,8 @@ def compute_filtered(
     state = _filter_state_from_session(df)
     state["company_filter"] = company_filter
     state["phone_search"] = phone_search
+    state["reason_filter"] = reason_filter
+    state["number_filter"] = number_filter
     filtered_df = _apply_filter_mask(df, state).drop(columns=["_date_parsed"])
     return filtered_df, state["group_enabled"], state, df
 
@@ -174,11 +264,12 @@ def phone_search_summary(filtered_df: pd.DataFrame, phone_search: str) -> dict |
 def render_filter_toolbar(df_with_date: pd.DataFrame, state: dict, lang: str) -> None:
     """يرسم شريط الفلاتر بصريًا فقط (فوق الجدول مباشرة) — لا يُعيد حساب أي فلترة؛ نفس
     مفاتيح session_state المستخدمة بـcompute_filtered أعلاه فتبقى القيم متوافقة دائمًا.
-    بحث الرقم والشركة انتقلا للهيدر — ما بقي هنا غير التاريخ/التفاصيل/الدمج فقط."""
+    بحث الرقم/الشركة/الاستفسار/الرقم انتقلوا للهيدر وصف "أبرز المؤشرات" — ما بقي هنا غير
+    التاريخ والدمج فقط."""
     if df_with_date.empty:
         return
     with st.container(key="maz_card_inbound_filters"):
-        col_date, col_details, col_group = st.columns([1.3, 1.3, 1.1])
+        col_date, col_group = st.columns([1.6, 1.1])
         with col_date:
             valid_dates = df_with_date["_date_parsed"].dropna()
             if not valid_dates.empty:
@@ -187,13 +278,6 @@ def render_filter_toolbar(df_with_date: pd.DataFrame, state: dict, lang: str) ->
                     t("inbound_table_date_range_label", lang), value=state["date_filter"],
                     min_value=min_d, max_value=max_d, key="inbound_filter_date",
                 )
-        with col_details:
-            details_select_options = [_DETAILS_ALL_VALUE] + state["details_options"]
-            st.selectbox(
-                t("inbound_table_details_label", lang), options=details_select_options,
-                format_func=lambda v: t("filter_all_option", lang) if v == _DETAILS_ALL_VALUE else v,
-                key="inbound_filter_details",
-            )
         with col_group:
             st.markdown("<div style='height:1.6rem'></div>", unsafe_allow_html=True)
             st.toggle(t("inbound_table_group_toggle", lang), value=False, key="inbound_filter_group")
