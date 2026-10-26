@@ -216,6 +216,54 @@ TRANSLATIONS = {
     "inbound_review_col_summary": {"ar": "ملخص المكالمة (مختصر)", "en": "Call Summary (excerpt)"},
 
     "inbound_download_label": {"ar": "📥 تحميل ملف المكالمات (جاهز للصق بشيت المزروع)", "en": "📥 Download calls file (ready to paste into Almazro sheet)"},
+
+    # ==== عناوين فرعية (Eyebrows) فوق عنوان كل صفحة ====
+    "eyebrow_dashboard": {"ar": "لوحة التحكم", "en": "Dashboard"},
+    "eyebrow_upload": {"ar": "رفع ملف الأوفلاين", "en": "Upload Offline File"},
+    "eyebrow_inbound": {"ar": "ان باوند كول", "en": "Inbound Call"},
+
+    # ==== مؤشر خطوات صفحة الرفع ====
+    "step_upload_label": {"ar": "رفع الملف", "en": "Upload file"},
+    "step_validate_label": {"ar": "التحقق", "en": "Validation"},
+    "step_extract_label": {"ar": "الاستخراج", "en": "Extraction"},
+    "upload_dropzone_types_hint": {"ar": "يقبل Excel أو CSV فقط، بحد أقصى 200 ميجابايت", "en": "Accepts Excel or CSV only, up to 200MB"},
+    "upload_preview_title": {"ar": "معاينة أول 10 صفوف", "en": "Preview of first 10 rows"},
+    "upload_preview_row_count": {"ar": "إجمالي عدد الصفوف بالملف: {count}", "en": "Total rows in file: {count}"},
+    "upload_error_banner_title": {"ar": "⚠️ صفوف تعذّر تفكيكها بالملف", "en": "⚠️ Rows that could not be parsed"},
+    "upload_cta_view_results": {"ar": "عرض نتائج الاستخراج ←", "en": "View extraction results →"},
+
+    # ==== صفحة Inbound Call — القشرة الجديدة ====
+    "inbound_subtitle_with_date": {"ar": "سجل المكالمات الواردة · {date}", "en": "Inbound call log · {date}"},
+    "inbound_download_csv_label": {"ar": "⬇️ تحميل CSV", "en": "⬇️ Download CSV"},
+    "inbound_kpi_serviced": {"ar": "تمت الخدمة", "en": "Serviced"},
+    "inbound_kpi_unique_numbers": {"ar": "أرقام فريدة", "en": "Unique numbers"},
+    "inbound_kpi_unique_sub": {"ar": "{count} رقم اتصل أكثر من مرة", "en": "{count} numbers called more than once"},
+
+    "inbound_insights_title": {"ar": "أبرز المؤشرات", "en": "Top Insights"},
+    "inbound_insight_top_company": {"ar": "أكثر شركة", "en": "Top company"},
+    "inbound_insight_top_reason": {"ar": "أكثر سبب اتصال", "en": "Top contact reason"},
+    "inbound_insight_top_number": {"ar": "أكثر رقم اتصل", "en": "Most frequent number"},
+    "inbound_insight_no_reason": {"ar": "{count} مكالمة بدون سبب مسجَّل", "en": "{count} calls with no recorded reason"},
+    "inbound_insight_of_total": {"ar": "{pct}% من الإجمالي", "en": "{pct}% of total"},
+    "inbound_insight_times": {"ar": "×{count} مرة", "en": "×{count} times"},
+    "inbound_insight_empty": {"ar": "لا توجد بيانات كافية", "en": "Not enough data"},
+
+    "inbound_table_search_label": {"ar": "🔍 بحث بالرقم", "en": "🔍 Search by number"},
+    "inbound_table_date_range_label": {"ar": "📅 نطاق التاريخ", "en": "📅 Date range"},
+    "inbound_table_status_label": {"ar": "الحالة", "en": "Status"},
+    "inbound_table_details_label": {"ar": "التفاصيل", "en": "Details"},
+    "inbound_table_group_toggle": {"ar": "دمج الأرقام المكررة", "en": "Merge duplicate numbers"},
+    "inbound_table_showing": {"ar": "عرض {shown} من {total}", "en": "Showing {shown} of {total}"},
+    "inbound_table_hidden_columns": {"ar": "{count} أعمدة فاضية مخفية ({cols})", "en": "{count} empty columns hidden ({cols})"},
+    "inbound_table_show_all": {"ar": "إظهار الكل", "en": "Show all"},
+    "inbound_table_col_date": {"ar": "التاريخ", "en": "Date"},
+    "inbound_table_col_number": {"ar": "رقم الجوال", "en": "Phone Number"},
+    "inbound_table_col_type": {"ar": "نوع المكالمة", "en": "Call Type"},
+    "inbound_table_col_status": {"ar": "حالة المكالمة", "en": "Call Status"},
+    "inbound_table_col_details": {"ar": "التفاصيل", "en": "Details"},
+    "inbound_table_col_count": {"ar": "عدد المكالمات", "en": "Call Count"},
+    "inbound_table_no_results": {"ar": "لا توجد مكالمات تطابق الفلاتر المحددة.", "en": "No calls match the selected filters."},
+    "inbound_table_page_caption": {"ar": "صفحة {current} من {total}", "en": "Page {current} of {total}"},
 }
 
 

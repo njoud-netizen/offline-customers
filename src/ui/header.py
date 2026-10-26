@@ -13,10 +13,13 @@ def render_page_header(
     lang: str,
     last_updated: str | None = None,
     on_refresh: Optional[Callable[[], None]] = None,
+    eyebrow: str | None = None,
 ) -> None:
     st.markdown('<div class="maz-page-header">', unsafe_allow_html=True)
     col_text, col_meta = st.columns([3, 1])
     with col_text:
+        if eyebrow:
+            st.markdown(f'<div class="maz-eyebrow">{eyebrow}</div>', unsafe_allow_html=True)
         st.markdown(f"<h1>{title}</h1>", unsafe_allow_html=True)
         st.markdown(f'<div class="maz-page-subtitle">{subtitle}</div>', unsafe_allow_html=True)
     with col_meta:

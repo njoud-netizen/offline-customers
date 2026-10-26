@@ -21,12 +21,13 @@ def _side_legend(title: str) -> alt.Legend:
 
 def _readable_text_color(hex_color: str) -> str:
     """يحسب لون نص (أبيض/داكن) يضمن تباينًا مقروءًا فوق لون خلفية معطى (صيغة YIQ
-    المعتادة لقياس السطوع المُدرَك) — يعمل بشكل صحيح لأي لون مستقبلي من brand_color_map،
-    وليس فقط الألوان الثلاثة الحالية."""
+    المعتادة لقياس السطوع المُدرَك) — يعمل بشكل صحيح لأي لون مستقبلي من brand_color_map.
+    ملاحظة: الفرع الداكن أبيض ثابت (وليس theme.TEXT_PRIMARY) عمدًا — بالثيم الفاتح الحالي
+    TEXT_PRIMARY نفسه داكن، فلو استُخدم كنص فوق شريحة داكنة يصير غير مقروء (داكن فوق داكن)."""
     h = hex_color.lstrip("#")
     r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
     yiq = (r * 299 + g * 587 + b * 114) / 1000
-    return theme.CHARCOAL if yiq >= 150 else theme.TEXT_PRIMARY
+    return theme.CHARCOAL if yiq >= 150 else theme.WHITE
 
 
 def build_offline_donut_chart(df_offline: pd.DataFrame, lang: str):
@@ -39,10 +40,12 @@ def build_offline_donut_chart(df_offline: pd.DataFrame, lang: str):
     total_count = int(agg["count"].sum())
 
     agg = agg.copy()
-    # تسمية Data Label داخل كل شريحة: نسبة مئوية فقط (بدون الرقم الخام) — والليجند
-    # يبقى اسم البراند + دائرة اللون فقط (بدون أرقام)، حسب الطلب الأحدث.
+    # تسمية Data Label داخل كل شريحة: نسبة مئوية فقط (بدون الرقم الخام).
     agg["pct_label"] = agg["pct_of_total"].round(0).astype(int).astype(str) + "%"
     agg["label_text_color"] = [_readable_text_color(color_map[c]) for c in agg["company_name"]]
+    # الليجند الآن يعرض اسم البراند + العدد معًا (طلب صريح جديد) — حقل منفصل للّون بدل
+    # company_name مباشرة، بنفس ترتيب صفوف agg حتى يبقى كل براند بلونه الحتمي الصحيح.
+    agg["legend_label"] = agg["company_name"] + " (" + agg["count"].astype(int).astype(str) + ")"
 
     # زاوية منتصف كل شريحة محسوبة يدويًا (Radians، 0 = الثانية 12، تزداد باتجاه عقارب
     # الساعة) — بنفس منطق تراكم Vega-Lite للأقواس بالضبط (بترتيب صفوف agg كما هو).
@@ -65,6 +68,7 @@ def build_offline_donut_chart(df_offline: pd.DataFrame, lang: str):
     # (الأقواس ونصوص النسب) 100%، يجب أن تُكدَّس الأقواس بنفس ترتيب الصفوف أيضًا.
     agg["sort_order"] = range(len(agg))
 
+    legend_domain = list(agg["legend_label"])
     base = (
         alt.Chart(agg)
         .mark_arc(innerRadius=95, outerRadius=165)
@@ -72,9 +76,9 @@ def build_offline_donut_chart(df_offline: pd.DataFrame, lang: str):
             theta=alt.Theta("count:Q"),
             order=alt.Order("sort_order:Q"),
             color=alt.Color(
-                "company_name:N",
-                sort=domain,
-                scale=alt.Scale(domain=domain, range=color_range),
+                "legend_label:N",
+                sort=legend_domain,
+                scale=alt.Scale(domain=legend_domain, range=color_range),
                 legend=_side_legend(t("legend_title_brand", lang)),
             ),
             tooltip=[

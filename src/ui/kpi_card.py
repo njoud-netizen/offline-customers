@@ -26,7 +26,9 @@ class KPICardData:
     delta_pct: float | None = None
     sparkline_df: pd.DataFrame | None = None  # أعمدة: "x" (تاريخ), "y" (قيمة)
     tooltip: str | None = None
-    accent: bool = False
+    accent: bool = False  # True = بطاقة بنفسجية معبّأة (filled)، False = بطاقة بيضاء عادية
+    progress_pct: float | None = None  # 0-100 — شريط تقدم أخضر (مثال: نسبة "تمت الخدمة")
+    sub_line: str | None = None  # سطر فرعي صغير تحت القيمة (مثال: "N رقم اتصل أكثر من مرة")
 
 
 def _sparkline_chart(df: pd.DataFrame) -> alt.Chart:
@@ -61,11 +63,22 @@ def render_kpi_row(cards: list[KPICardData]) -> None:
             with st.container(key=container_key):
                 icon_html = f'<span class="maz-kpi-icon">{card.icon}</span> ' if card.icon else ""
                 title_attr = f' title="{card.tooltip}"' if card.tooltip else ""
+                progress_html = ""
+                if card.progress_pct is not None:
+                    pct = max(0.0, min(100.0, card.progress_pct))
+                    progress_html = (
+                        f'<div class="maz-kpi-progress-track">'
+                        f'<div class="maz-kpi-progress-fill" style="width:{pct:.0f}%;"></div>'
+                        f"</div>"
+                    )
+                sub_line_html = f'<div class="maz-kpi-subline">{card.sub_line}</div>' if card.sub_line else ""
                 card_html = (
                     f'<div class="maz-kpi-inner"{title_attr}>'
                     f'<div class="maz-kpi-label">{icon_html}{card.label}</div>'
                     f'<div class="maz-kpi-value">{card.value}</div>'
                     f"{_delta_html(card.delta_pct)}"
+                    f"{progress_html}"
+                    f"{sub_line_html}"
                     f"</div>"
                 )
                 st.markdown(card_html, unsafe_allow_html=True)

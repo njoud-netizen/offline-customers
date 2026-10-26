@@ -34,7 +34,7 @@ def build_sales_offline_combo_chart(df_offline: pd.DataFrame, lang: str):
             x=companies,
             y=sales_values,
             name=t("chart_axis_sales", lang),
-            marker_color=theme.TECHNO_PURPLE,
+            marker_color=theme.CHART_AXIS_PRIMARY,
             text=[f"{v:,.0f}" for v in sales_values],
             textposition="outside",
             textfont=dict(color=theme.TEXT_PRIMARY, size=12),
@@ -51,7 +51,7 @@ def build_sales_offline_combo_chart(df_offline: pd.DataFrame, lang: str):
             x=companies,
             y=count_values,
             name=t("kpi_total_offline", lang),
-            marker_color=theme.NIGHT_PURPLE,
+            marker_color=theme.CHART_AXIS_SECONDARY,
             offsetgroup="offline_count",
             text=[f"{v:,.0f}" for v in count_values],
             textposition="outside",
@@ -75,12 +75,13 @@ def build_sales_offline_combo_chart(df_offline: pd.DataFrame, lang: str):
         uniformtext_mode="hide",
     )
     fig.update_xaxes(title_text=t("chart_axis_brand", lang), tickangle=-20, gridcolor=theme.BORDER, color=theme.TEXT_SECONDARY)
+    # محور السلسلة اليسرى (المبيعات) بنفسجي، واليمنى (عدد العملاء) أزرق — نفس لون كل سلسلة.
     fig.update_yaxes(
         title_text=t("chart_axis_sales", lang), secondary_y=False,
-        gridcolor=theme.BORDER, zeroline=False, color=theme.TEXT_SECONDARY,
+        gridcolor=theme.BORDER, zeroline=False, color=theme.CHART_AXIS_PRIMARY,
     )
     fig.update_yaxes(
         title_text=t("kpi_total_offline", lang), secondary_y=True,
-        showgrid=False, zeroline=False, color=theme.TEXT_SECONDARY,
+        showgrid=False, zeroline=False, color=theme.CHART_AXIS_SECONDARY,
     )
     return fig, agg

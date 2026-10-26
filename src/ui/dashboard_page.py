@@ -83,6 +83,7 @@ def dashboard_page() -> None:
         lang,
         last_updated=st.session_state["dashboard_loaded_at"],
         on_refresh=_refresh,
+        eyebrow=t("eyebrow_dashboard", lang),
     )
 
     if load_error:
@@ -143,7 +144,7 @@ def dashboard_page() -> None:
                 delta_pct=sales_delta,
                 sparkline_df=monthly_sales_spark,
                 tooltip=t("kpi_total_sales_tooltip", lang),
-                accent=True,
+                accent=False,
             ),
         ]
     )
