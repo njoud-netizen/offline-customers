@@ -182,7 +182,7 @@ TRANSLATIONS = {
     "exclusion_table_col_count": {"ar": "العدد", "en": "Count"},
 
     # ==== صفحة Inbound Call (باوند كول) ====
-    "inbound_call_title": {"ar": "باوند كول (Inbound Call)", "en": "Inbound Call"},
+    "inbound_call_title": {"ar": "ان باوند كول", "en": "Inbound Call"},
     "inbound_call_subtitle": {
         "ar": "ارفع تصدير المكالمات اليومي من Maqsam لاستخراج اسم العميل والاستفسار تلقائيًا بالذكاء الاصطناعي",
         "en": "Upload the daily Maqsam call export to automatically extract customer name and inquiry with AI",
