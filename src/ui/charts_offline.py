@@ -21,14 +21,14 @@ def _side_legend(title: str) -> alt.Legend:
 
 
 # ألوان الشرائح الغامقة اللي تحتاج نص أبيض فوقها (حسب الطلب الصريح) — أي لون ثاني (بما فيها
-# أي براند مستقبلي بلون غير معروف عبر DEFAULT_COLOR) ياخذ نص #2E1866 الداكن تلقائيًا.
-_DARK_SLICE_COLORS = {"#2E1866", "#9354FF"}
+# أي براند مستقبلي بلون غير معروف عبر DEFAULT_COLOR) ياخذ نص #131321 الداكن تلقائيًا.
+_DARK_SLICE_COLORS = {"#9354FF", "#3E296B", "#683EB5"}
 
 
 def _readable_text_color(hex_color: str) -> str:
-    """أبيض فوق الشرائح الغامقة المحدَّدة صراحةً (#2E1866 وَ#9354FF)، وإلا #2E1866 الداكن
-    فوق أي شريحة فاتحة ثانية — بدل حساب YIQ تلقائي سابقًا."""
-    return theme.WHITE if hex_color.upper() in _DARK_SLICE_COLORS else "#2E1866"
+    """أبيض فوق الشرائح الغامقة المحدَّدة صراحةً (#9354FF/#3E296B/#683EB5)، وإلا #131321
+    الداكن فوق أي شريحة فاتحة ثانية (#C9AAFF/#E4D4FF وغيرها)."""
+    return theme.WHITE if hex_color.upper() in _DARK_SLICE_COLORS else theme.TEXT_PRIMARY
 
 
 def build_offline_donut_chart(df_offline: pd.DataFrame, lang: str):
@@ -75,7 +75,7 @@ def build_offline_donut_chart(df_offline: pd.DataFrame, lang: str):
     legend_domain = list(agg["legend_label"])
     base = (
         alt.Chart(agg)
-        .mark_arc(innerRadius=95, outerRadius=165)
+        .mark_arc(innerRadius=95, outerRadius=165, stroke=theme.WHITE, strokeWidth=2)
         .encode(
             theta=alt.Theta("count:Q"),
             order=alt.Order("sort_order:Q"),
@@ -103,5 +103,13 @@ def build_offline_donut_chart(df_offline: pd.DataFrame, lang: str):
     )
     center_df = pd.DataFrame({"label": [str(total_count)]})
     center_text = alt.Chart(center_df).mark_text(size=36, fontWeight="bold", color=theme.TEXT_PRIMARY).encode(text="label:N")
+    # سطر صغير تحت الرقم بمنتصف الدونات يوضّح وش يمثّل (إجمالي العملاء الأوفلاين) — ييزيح
+    # لأسفل قليلاً (dy) حتى لا يتراكب مع الرقم الكبير فوقه.
+    center_subtitle_df = pd.DataFrame({"label": [t("kpi_total_offline", lang)]})
+    center_subtitle = (
+        alt.Chart(center_subtitle_df)
+        .mark_text(size=11, dy=22, color=theme.TEXT_MUTED)
+        .encode(text="label:N")
+    )
     # ارتفاع أكبر قليلاً (كان 400) ليتسع الـlegend الأفقي أسفل الرسم بدون ازدحام مع الدونات.
-    return (base + pct_labels + center_text).properties(height=460), agg
+    return (base + pct_labels + center_text + center_subtitle).properties(height=460), agg

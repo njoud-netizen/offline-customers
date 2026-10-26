@@ -56,7 +56,7 @@ DANGER_BG = "#FEE4E2"
 # (charts_combo.py, charts_sales.py, charts_offline.py) — لا قيم hex أخرى مكتوبة يدويًا هناك. ====
 MAZ_COLORS = {
     "sales": "#9354FF",    # إجمالي المبيعات
-    "offline": "#252F77",  # إجمالي العملاء الأوفلاين
+    "offline": "#3E296B",  # إجمالي العملاء الأوفلاين
 }
 
 GRADIENT_PRIMARY = f"linear-gradient(135deg, {PURPLE_400} 0%, {PURPLE_500} 100%)"
@@ -83,12 +83,12 @@ ICON_TILE_COLOR = PURPLE_400
 # أي براند غير مذكور هنا ياخذ DEFAULT_COLOR (من القائمة المعتمدة أيضًا).
 BRAND_COLORS = {
     "BedQuarterKSA": "#9354FF",
-    "BedHouse": "#252F77",
-    "LaZBoy": "#8C8FFE",
-    "BedQuarterBAH": "#C9AAFF",
-    "BedQuarterUAE": "#CFE7FE",
+    "BedHouse": "#3E296B",
+    "LaZBoy": "#C9AAFF",
+    "BedQuarterBAH": "#683EB5",
+    "BedQuarterUAE": "#E4D4FF",
 }
-DEFAULT_COLOR = PURPLE_300
+DEFAULT_COLOR = "#AE7FFF"
 FALLBACK_BRAND_COLOR = DEFAULT_COLOR
 
 FONT_STACK = "'IBM Plex Sans Arabic', 'Poppins', 'Segoe UI', Tahoma, Arial, sans-serif"
@@ -585,17 +585,27 @@ def inject_theme(lang: str) -> None:
 
         /* ==== بطاقات الأبرز (Insight Cards) ==== */
         div[class*="st-key-maz_insights_row_wrap"] {{ margin-bottom: 20px; }}
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stHorizontalBlock"] {{ align-items: stretch; }}
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > div {{ height: 100%; }}
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stHorizontalBlock"] {{ align-items: stretch !important; }}
+        /* سلسلة height:100% كاملة من stColumn لين .maz-insight-card — تحقّقنا من بنية الـDOM
+        الفعلية بالمتصفح (stColumn > stVerticalBlock > stElementContainer > stMarkdown >
+        stMarkdownContainer > .maz-insight-card): أي حلقة بالسلسلة بدون height صريح (auto)
+        تكسر توريث height:100% للي تحتها، حتى لو align-items:stretch شغّال فعليًا بالأعلى. */
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > div,
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stVerticalBlock"],
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stElementContainer"],
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stMarkdown"],
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stMarkdownContainer"] {{
+            height: 100% !important;
+        }}
         .maz-insight-card {{
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 20px;
             overflow: hidden;
             padding: 16px 18px;
-            min-height: 150px;
-            height: 100%;
-            box-sizing: border-box;
+            min-height: 300px;
+            height: 100% !important;
+            box-sizing: border-box !important;
         }}
         /* أيقونات موحّدة بالكامل (بدون تمييز لوني لكل بطاقة) — {ICON_TILE_COLOR} داخل مربع
         {ICON_TILE_BG} بزوايا 12px، حسب الطلب الصريح. */
@@ -626,14 +636,14 @@ def inject_theme(lang: str) -> None:
             font-family: 'IBM Plex Sans Arabic', sans-serif;
         }}
         .maz-insight-meta {{ color: {TEXT_MUTED}; font-size: 14px; margin-top: 4px; }}
-        .maz-reason-row {{ margin-top: 14px; }}
+        .maz-reason-row {{ margin-top: 10px; }}
         .maz-reason-label-row {{
             display: flex;
             align-items: center;
             justify-content: space-between;
             font-size: 0.8rem;
             color: var(--text-secondary);
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }}
         .maz-reason-track {{ width: 100%; height: 8px; border-radius: 999px; background: {PURPLE_50}; overflow: hidden; }}
         .maz-reason-fill {{ height: 100%; border-radius: 999px; background: {PURPLE_400}; }}
