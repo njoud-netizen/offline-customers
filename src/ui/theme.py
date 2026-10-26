@@ -50,8 +50,13 @@ WARNING = "#F59E0B"
 DANGER = "#B42318"
 DANGER_BG = "#FEE4E2"  # مسموح فقط لرسائل الخطأ — القيد الوحيد غير البنفسجي بصفحة Inbound Call
 
-CHART_AXIS_PRIMARY = MAZNEXA_PURPLE
-CHART_AXIS_SECONDARY = "#3B82F6"
+# ==== ألوان الرسوم البيانية — هوية Maznexa فقط (درجات بنفسجي)، ممنوع أي أزرق/أخضر/برتقالي
+# أو color sequence افتراضي بأي رسم بالتطبيق. تُستخدم مباشرة بكل ملفات الرسوم
+# (charts_combo.py, charts_sales.py, charts_offline.py) — لا قيم hex أخرى مكتوبة يدويًا هناك. ====
+MAZ_COLORS = {
+    "sales": "#9354FF",    # إجمالي المبيعات
+    "offline": "#2E1866",  # إجمالي العملاء الأوفلاين
+}
 
 GRADIENT_PRIMARY = f"linear-gradient(135deg, {MAZNEXA_PURPLE} 0%, {PURPLE_WAVE} 100%)"
 GRADIENT_SOFT = f"linear-gradient(135deg, rgba(147,84,255,0.10) 0%, rgba(104,62,181,0.04) 100%)"
@@ -78,18 +83,16 @@ BADGE_REPEAT_TEXT = "#FFFFFF"
 BADGE_REPEAT_BG = "#5B21B6"
 
 # ترتيب ثابت للألوان الفئوية (Categorical) بالرسوم — نفس البراند ياخذ نفس اللون دائمًا، عائلة
-# بنفسجي بالكامل. القيم المحدَّدة حرفيًا بالمواصفة؛ BedQuarterUAE لم تُحدَّد قيمتها بالرسالة
-# (انقطعت) — استخدمت MAZNEXA_PURPLE كأقرب درجة بنفسجية متوسطة ضمن نفس العائلة حتى تصحّح لاحقًا.
-BRAND_PALETTE_ORDER = ["#9354FF", "#3B82F6", "#10B981", "#F59E0B", "#C4A6FF", "#A9A5BA"]
+# بنفسجي بالكامل حصرًا (قيم حرفية من المواصفة). أي براند غير مذكور هنا ياخذ DEFAULT_COLOR.
 BRAND_COLORS = {
-    "BedHouse": "#7B3FF2",
-    "BedQuarterKSA": "#2A1A5E",
-    "BedQuarterBAH": "#B79BFF",
-    "BedQuarterUAE": MAZNEXA_PURPLE,  # غير محدّدة بالمواصفة — افتراض مؤقت (راجع الملاحظة أعلاه)
-    "LaZBoy": PURPLE_DEEP,
+    "BedHouse": "#9354FF",
+    "BedQuarterKSA": "#2E1866",
+    "LaZBoy": "#5B2BB5",
+    "BedQuarterBAH": "#B794FF",
+    "BedQuarterUAE": "#D6C4FF",
 }
-FALLBACK_BRAND_COLOR = MEDIUM_GRAY
-_FALLBACK_PALETTE_CYCLE = [PURPLE_LIGHT, PURPLE_WAVE, PURPLE_DARKEST, PURPLE_V2, NIGHT_PURPLE, TECHNO_PURPLE]
+DEFAULT_COLOR = "#A7A3B8"
+FALLBACK_BRAND_COLOR = DEFAULT_COLOR
 
 FONT_STACK = "'IBM Plex Sans Arabic', 'Poppins', 'Segoe UI', Tahoma, Arial, sans-serif"
 FONT_STACK_LTR = "'Poppins', 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif"
@@ -139,18 +142,9 @@ def register_altair_theme() -> None:
 
 
 def brand_color_map(brand_names: list[str]) -> dict[str, str]:
-    """يعيد {اسم البراند: لون} حتمي لأي عدد براندات — المعروفة بألوانها الثابتة، وأي براند
-    إضافي ياخذ لونًا من دورة احتياطية بترتيب أبجدي (حتمي، لا عشوائية)."""
-    result: dict[str, str] = {}
-    unmatched: list[str] = []
-    for name in brand_names:
-        if name in BRAND_COLORS:
-            result[name] = BRAND_COLORS[name]
-        else:
-            unmatched.append(name)
-    for i, name in enumerate(sorted(unmatched)):
-        result[name] = _FALLBACK_PALETTE_CYCLE[i % len(_FALLBACK_PALETTE_CYCLE)]
-    return result
+    """يعيد {اسم البراند: لون} حتمي لأي عدد براندات — المعروفة بألوانها الثابتة بـBRAND_COLORS،
+    وأي براند غير معروف ياخذ DEFAULT_COLOR (رمادي-بنفسجي محايد) بدل أي لون عشوائي."""
+    return {name: BRAND_COLORS.get(name, DEFAULT_COLOR) for name in brand_names}
 
 
 def inject_theme(lang: str) -> None:

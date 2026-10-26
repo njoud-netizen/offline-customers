@@ -4,11 +4,9 @@
 (المبيعات بالملايين، عدد العملاء بالمئات)، بلون مختلف واضح لكل نوع عمود (وليس لكل
 شركة كما بالرسوم الأخرى)، وLegend أفقي أعلى الرسم (لا يتراكب فوق أسماء الشركات).
 
-الألوان: درجتان من نفس عائلة البنفسجي (هوية Maznexa) — TECHNO_PURPLE (فاتحة) للمبيعات
-وNIGHT_PURPLE (غامقة) لعدد العملاء الأوفلاين، بفارق إضاءة كبير بينهما لتمييز واضح دون
-لبس. هذا التخصيص محلي لهذا الرسم فقط عبر استيراد مباشر من theme.py — لا يمس
-BRAND_COLORS/brand_color_map المستخدمة بألوان البراندات (BedHouse/BedQuarterKSA/
-LaZBoy) بباقي رسوم الداشبورد إطلاقًا."""
+الألوان: theme.MAZ_COLORS["sales"]/["offline"] — عائلة بنفسجي Maznexa حصرًا (لا أزرق/أخضر/
+برتقالي إطلاقًا). هذا التخصيص محلي لهذا الرسم فقط — لا يمس BRAND_COLORS/brand_color_map
+المستخدمة بألوان البراندات (BedHouse/BedQuarterKSA/LaZBoy) بباقي رسوم الداشبورد إطلاقًا."""
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -34,7 +32,7 @@ def build_sales_offline_combo_chart(df_offline: pd.DataFrame, lang: str):
             x=companies,
             y=sales_values,
             name=t("chart_axis_sales", lang),
-            marker_color=theme.CHART_AXIS_PRIMARY,
+            marker_color=theme.MAZ_COLORS["sales"],
             text=[f"{v:,.0f}" for v in sales_values],
             textposition="outside",
             textfont=dict(color=theme.TEXT_MUTED_DARK, size=12),
@@ -51,7 +49,7 @@ def build_sales_offline_combo_chart(df_offline: pd.DataFrame, lang: str):
             x=companies,
             y=count_values,
             name=t("kpi_total_offline", lang),
-            marker_color=theme.CHART_AXIS_SECONDARY,
+            marker_color=theme.MAZ_COLORS["offline"],
             offsetgroup="offline_count",
             text=[f"{v:,.0f}" for v in count_values],
             textposition="outside",
@@ -64,7 +62,7 @@ def build_sales_offline_combo_chart(df_offline: pd.DataFrame, lang: str):
     fig.update_layout(
         barmode="group",
         height=560,
-        margin=dict(t=70, b=60, l=70, r=70),
+        margin=dict(t=70, b=90, l=80, r=90),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         font=dict(color=theme.TEXT_MUTED_DARK, family=theme.FONT_STACK),
@@ -74,15 +72,20 @@ def build_sales_offline_combo_chart(df_offline: pd.DataFrame, lang: str):
         uniformtext_minsize=9,
         uniformtext_mode="hide",
     )
-    # شبكة أفقية فقط (لا gridlines على محور X) — حسب المواصفة.
-    fig.update_xaxes(title_text=t("chart_axis_brand", lang), tickangle=-20, showgrid=False, color=theme.TEXT_MUTED_DARK)
-    # محور السلسلة اليسرى (المبيعات) بنفسجي، واليمنى (عدد العملاء) أزرق — نفس لون كل سلسلة.
+    # شبكة أفقية فقط (لا gridlines على محور X) — standoff يبعد عنوان "الشركة/البراند" عن
+    # أسماء البراندات المائلة (tickangle=-20) حتى لا يتلاصقا بصريًا.
+    fig.update_xaxes(
+        title=dict(text=t("chart_axis_brand", lang), standoff=28),
+        tickangle=-20, showgrid=False, color=theme.TEXT_MUTED_DARK,
+    )
+    # محور السلسلة اليسرى (المبيعات) واليمنى (عدد العملاء) — عائلة بنفسجي Maznexa حصرًا.
+    # standoff على المحور اليمين يبعد عنوانه عن أرقامه (كانا متلاصقين سابقًا).
     fig.update_yaxes(
-        title_text=t("chart_axis_sales", lang), secondary_y=False,
-        gridcolor=theme.BORDER, zeroline=False, color=theme.CHART_AXIS_PRIMARY,
+        title=dict(text=t("chart_axis_sales", lang), standoff=10), secondary_y=False,
+        gridcolor=theme.BORDER, zeroline=False, color=theme.MAZ_COLORS["sales"],
     )
     fig.update_yaxes(
-        title_text=t("kpi_total_offline", lang), secondary_y=True,
-        showgrid=False, zeroline=False, color=theme.CHART_AXIS_SECONDARY,
+        title=dict(text=t("kpi_total_offline", lang), standoff=30), secondary_y=True,
+        showgrid=False, zeroline=False, color=theme.MAZ_COLORS["offline"],
     )
     return fig, agg
