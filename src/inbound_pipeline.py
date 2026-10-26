@@ -74,6 +74,7 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
     for r in records:
         fields = extracted.get(r.call_id, {})
         name = fields.get("customer_name", "")
+        city = fields.get("city", "")
         details = fields.get("details", "")
         is_complaint = bool(fields.get("flag_commerce_complaint", False))
         if details:
@@ -100,6 +101,14 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
 
         number_value = r.customer_phone.normalized or r.customer_phone.raw
 
+        remark = ""
+        if review_reasons:
+            remark = "يحتاج مراجعة يدوية: " + " | ".join(review_reasons)
+            if r.call_summary:
+                # نص ملخص المكالمة نفسه داخل Remark مباشرة — حتى ما تحتاج ترجع لماقسام وتسمع
+                # المكالمة بنفسك عشان تعرف وش قال العميل.
+                remark += f" || ملخص المكالمة: {r.call_summary[:300]}"
+
         row = {
             "Name": name,
             "Number": number_value,
@@ -114,9 +123,9 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
             "company": r.canonical_company or "",
             "Satisfied/or not": "",
             "How did you hear about us": "",
-            "Remark": ("يحتاج مراجعة يدوية: " + " | ".join(review_reasons)) if review_reasons else "",
+            "Remark": remark,
             "Agent": r.agent,
-            "Show Room": "",
+            "Show Room": city,
         }
         rows.append({col: row.get(col, "") for col in columns})  # ترتيب حرفي مضمون لملف الإخراج
         highlight_flags.append(is_complaint)

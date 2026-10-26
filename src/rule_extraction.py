@@ -47,10 +47,14 @@ _NAME_PATTERNS = [
 
 
 def _singularize(word: str) -> str:
-    """تطبيع بسيط للجمع الإنجليزي (branch/branches, recliner/recliners...) لتقليل الفوت بسبب فرق
-    المفرد/الجمع فقط بين نص الملخص وقيمة الكتالوج — تقريبي عمدًا، لا قواعد لغوية كاملة."""
+    """تطبيع بسيط للجمع الإنجليزي (branch/branches, recliner/recliners, mattress/mattresses...)
+    لتقليل الفوت بسبب فرق المفرد/الجمع فقط بين نص الملخص وقيمة الكتالوج — تقريبي عمدًا، لا
+    قواعد لغوية كاملة."""
     if word == "branche":
         return "branch"  # خطأ إدخال شائع بقائمة Details الحقيقية ("Branche" بدل "Branch")
+    # جمع ينتهي بـ "-es" بعد s/ch/sh/x (mattresses -> mattress, branches -> branch, boxes -> box)
+    if word.endswith(("sses", "ches", "shes", "xes")):
+        return word[:-2]
     if len(word) > 4 and word.endswith("s") and not word.endswith("ss"):
         return word[:-1]
     return word
@@ -99,11 +103,34 @@ def is_commerce_complaint(summary: str) -> bool:
     return any(signal in text_lower for signal in _COMMERCE_COMPLAINT_SIGNALS)
 
 
+# قاعدة عمل خاصة (طلب المستخدم): استفسار عام عن "مراتب/مرتبة" بدون تحديد نوع/موديل معيّن
+# (مثل Getha، Eclipse، Kluft...) يُصنَّف افتراضيًا "Medical Mattresses price" بدل Other — هذا
+# fallback فقط يُطبَّق لو ما طابق أي قيمة أدق بالقائمة أولًا.
+_GENERIC_MATTRESS_FALLBACK = "Medical Mattresses price"
+
+
+def _mentions_mattress(summary_words: set) -> bool:
+    return "mattress" in summary_words
+
+
+def _words_appear_near(summary_lower: str, words: set, window: int = 40) -> bool:
+    """يتحقق إن كل كلمات القيمة تظهر قريبة من بعض بالنص (وليس مجرد متناثرة بأي مكان) — يمنع
+    مثلًا 'Job Email' من الانطباق لمجرد ظهور 'job' و'email' بسياقين منفصلين تمامًا بنفس الملخص."""
+    positions = []
+    for w in words:
+        idx = summary_lower.find(w)
+        if idx == -1:
+            return False
+        positions.append(idx)
+    return (max(positions) - min(positions)) <= window
+
+
 def classify_details(summary: str, details_catalog: list[str]) -> str:
     """
     يختار أقرب قيمة من details_catalog: تطابق تام للعبارة كـ substring يُفضَّل دومًا؛ وإلا يُشترط
-    ظهور كل كلمات القيمة (بغض النظر عن ترتيبها) ضمن نص الملخص — مطابقة محافظة لتقليل الأخطاء.
-    يرجع "Other" إذا لم تنطبق أي قيمة.
+    ظهور كل كلمات القيمة قريبة من بعض (نافذة 40 حرف) ضمن نص الملخص — مطابقة محافظة لتقليل
+    الأخطاء (مثل "Job Email" لا تنطبق لمجرد وجود "job" و"email" بسياقين منفصلين بنفس النص).
+    يرجع "Other" إذا لم تنطبق أي قيمة (مع fallback عام لاستفسارات المراتب — انظر أسفله).
     """
     if not summary:
         return ""
@@ -115,7 +142,7 @@ def classify_details(summary: str, details_catalog: list[str]) -> str:
     summary_words = _tokenize(summary)
 
     best_value = None
-    best_score = 0
+    best_score = (0, 0)  # (عدد الكلمات المميزة بالقيمة, طول الحروف) — الأكثر تحديدًا يفوز أولًا
 
     for value in details_catalog:
         value_lower = value.lower()
@@ -124,16 +151,23 @@ def classify_details(summary: str, details_catalog: list[str]) -> str:
         if len(value_lower) < 3:
             continue
         if re.search(r"\b" + re.escape(value_lower) + r"\b", summary_lower):
-            score = 1000 + len(value_lower)  # تطابق حرفي كامل -> أولوية قصوى
+            # عدد الكلمات المميزة بالقيمة نفسها — يضمن إن "Job Email" (كلمتين) تتفوق على "job"
+            # (كلمة وحدة) حتى لو الاثنتين انطابقتا، بدل بونص ثابت كان يرجّح القيم القصيرة دومًا.
+            score = (max(len(_tokenize(value)), 1), len(value_lower))
         else:
             value_words = {w for w in _tokenize(value) if len(w) >= 3}
             if not value_words or not value_words.issubset(summary_words):
                 continue
-            score = sum(len(w) for w in value_words)
+            if len(value_words) > 1 and not _words_appear_near(summary_lower, value_words):
+                continue
+            score = (len(value_words), sum(len(w) for w in value_words))
 
         if score > best_score:
             best_score = score
             best_value = value
+
+    if best_value is None and _mentions_mattress(summary_words) and _GENERIC_MATTRESS_FALLBACK in details_catalog:
+        return _GENERIC_MATTRESS_FALLBACK
 
     return best_value or _DETAILS_OTHER
 
