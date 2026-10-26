@@ -60,8 +60,9 @@ def upload_page() -> None:
 
     render_page_header(t("upload_title", lang), t("upload_subtitle", lang), lang, eyebrow=t("eyebrow_upload", lang))
 
+    step_box = st.empty()
+
     with st.container(key="maz_card_upload_dropzone"):
-        st.markdown(f'<p class="maz-upload-dropzone-title">{t("upload_drag_here", lang)}</p>', unsafe_allow_html=True)
         uploaded_file = st.file_uploader(
             t("uploader_label", lang), type=["xlsx", "csv"], label_visibility="collapsed",
         )
@@ -74,7 +75,6 @@ def upload_page() -> None:
             unsafe_allow_html=True,
         )
         st.markdown(f'<p class="maz-upload-hint">{t("upload_hint", lang)}</p>', unsafe_allow_html=True)
-        st.markdown(f'<p class="maz-upload-helper-line">{t("upload_auto_process_helper", lang)}</p>', unsafe_allow_html=True)
 
     with st.container(key="maz_card_upload_preview_toggle"):
         preview_mode = st.toggle(t("preview_checkbox_label", lang), value=False)
@@ -84,7 +84,8 @@ def upload_page() -> None:
         st.warning(t("preview_warning", lang))
 
     if uploaded_file is None:
-        render_step_indicator(STEP_UPLOAD, step_labels)
+        with step_box.container():
+            render_step_indicator(STEP_UPLOAD, step_labels)
         render_footer(lang)
         return
 
@@ -107,18 +108,21 @@ def upload_page() -> None:
         progress_box.empty()
     except GoogleSheetsConnectionError as e:
         progress_box.empty()
-        render_step_indicator(STEP_VALIDATE, step_labels)
+        with step_box.container():
+            render_step_indicator(STEP_VALIDATE, step_labels)
         st.error(f"{t('error_sheets_connection', lang)}\n\n{e}")
     except Exception as e:
         progress_box.empty()
-        render_step_indicator(STEP_VALIDATE, step_labels)
+        with step_box.container():
+            render_step_indicator(STEP_VALIDATE, step_labels)
         st.error(f"{t('error_processing', lang)}\n\n{e}")
 
     if pipeline_result is None:
         render_footer(lang)
         return
 
-    render_step_indicator(STEP_EXTRACT, step_labels)
+    with step_box.container():
+        render_step_indicator(STEP_EXTRACT, step_labels)
 
     if pipeline_result.invalid_rows:
         with st.container(key="maz_card_error_banner"):

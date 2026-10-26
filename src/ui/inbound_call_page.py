@@ -126,8 +126,9 @@ def inbound_call_page() -> None:
         eyebrow=t("eyebrow_inbound", lang),
     )
 
+    step_box = st.empty()
+
     with st.container(key="maz_card_inbound_upload"):
-        st.markdown(f'<p class="maz-upload-dropzone-title">{t("upload_drag_here", lang)}</p>', unsafe_allow_html=True)
         uploaded_file = st.file_uploader(
             t("inbound_uploader_label", lang), type=["xlsx", "csv"], label_visibility="collapsed",
         )
@@ -140,10 +141,10 @@ def inbound_call_page() -> None:
             unsafe_allow_html=True,
         )
         st.markdown(f'<p class="maz-upload-hint">{t("inbound_upload_hint", lang)}</p>', unsafe_allow_html=True)
-        st.markdown(f'<p class="maz-upload-helper-line">{t("upload_auto_process_helper", lang)}</p>', unsafe_allow_html=True)
 
     if uploaded_file is None:
-        render_step_indicator("upload", step_labels, steps=_INBOUND_STEPS)
+        with step_box.container():
+            render_step_indicator("upload", step_labels, steps=_INBOUND_STEPS)
         render_footer(lang)
         return
 
@@ -162,15 +163,18 @@ def inbound_call_page() -> None:
         progress_box.empty()
     except CallExtractionError as e:
         progress_box.empty()
-        render_step_indicator("process", step_labels, steps=_INBOUND_STEPS)
+        with step_box.container():
+            render_step_indicator("process", step_labels, steps=_INBOUND_STEPS)
         st.error(f"{t('inbound_error_processing', lang)}\n\n{e}")
     except Exception as e:
         progress_box.empty()
-        render_step_indicator("process", step_labels, steps=_INBOUND_STEPS)
+        with step_box.container():
+            render_step_indicator("process", step_labels, steps=_INBOUND_STEPS)
         st.error(f"{t('inbound_error_processing', lang)}\n\n{e}")
 
     if result is not None:
-        render_step_indicator("results", step_labels, steps=_INBOUND_STEPS)
+        with step_box.container():
+            render_step_indicator("results", step_labels, steps=_INBOUND_STEPS)
         st.success(t("inbound_success_processed", lang))
 
         if not result.rows:

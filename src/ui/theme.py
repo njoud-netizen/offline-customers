@@ -407,9 +407,18 @@ def inject_theme(lang: str) -> None:
             fill: {PURPLE_V2} !important;
             color: {PURPLE_V2} !important;
         }}
-        /* نص تعليمات الرفع الأصلي (كان يظهر أبيض على أبيض سابقًا — الإصلاح الحقيقي هنا) */
+        /* نص تعليمات الرفع الأصلي "200MB per file • XLSX, CSV" (إنجليزي، من Streamlit نفسها)
+        يُخفى بالكامل ونستبدله بنص عربي عبر ::after — نفس أسلوب زر "اختر ملف" أدناه بالضبط.
+        تحقّقنا من بنية الـ DOM الفعلية عبر المتصفح: العنصر div واحد مباشر تحت
+        stFileUploaderDropzoneInstructions يحوي span النص (لا يوجد svg هنا إطلاقًا). */
         [data-testid="stFileUploaderDropzoneInstructions"] * {{
-            color: {TEXT_MUTED} !important;
+            font-size: 0 !important;
+        }}
+        [data-testid="stFileUploaderDropzoneInstructions"] > div::after {{
+            content: "اسحب الملف هنا أو اضغط اختر ملف";
+            font-size: 0.85rem;
+            color: {TEXT_MUTED};
+            font-family: 'IBM Plex Sans Arabic', sans-serif;
         }}
         /* زر الرفع: نص "Browse files" الأصلي يُخفى ونستبدله بـ"اختر ملف" عبر ::after */
         [data-testid="stFileUploaderDropzone"] button {{
@@ -447,12 +456,6 @@ def inject_theme(lang: str) -> None:
             font-weight: 600;
             padding: 3px 12px;
             border-radius: 999px;
-        }}
-        .maz-upload-dropzone-title {{
-            color: var(--text-primary);
-            font-weight: 700;
-            font-size: 0.95rem;
-            margin: 10px 0 2px 0;
         }}
         .maz-upload-helper-line {{
             color: {TEXT_MUTED};
