@@ -26,6 +26,17 @@ from .phone_format import format_phone_display
 from .step_indicator import render_step_indicator
 
 
+def _format_unique_sub(count: int, lang: str) -> str:
+    """صيغة جمع عربية صحيحة حسب العدد: صفر/واحد/اثنين/جمع (٣ فأكثر)."""
+    if count == 0:
+        return t("inbound_kpi_unique_sub_zero", lang)
+    if count == 1:
+        return t("inbound_kpi_unique_sub_one", lang)
+    if count == 2:
+        return t("inbound_kpi_unique_sub_two", lang)
+    return t("inbound_kpi_unique_sub_plural", lang).format(count=count)
+
+
 def _top_value_insight(series: pd.Series) -> tuple[str, int, float]:
     """يرجع (القيمة الأكثر تكرارًا, عددها, نسبتها من إجمالي الصفوف غير الفاضية)."""
     non_empty = series[series.astype(str).str.strip() != ""]
@@ -214,8 +225,9 @@ def inbound_call_page() -> None:
                         progress_pct=serviced_pct,
                     ),
                     KPICardData(
-                        label=t("inbound_kpi_unique_numbers", lang), value=f"{unique_numbers:,}", icon="🔢",
-                        sub_line=t("inbound_kpi_unique_sub", lang).format(count=repeated_count),
+                        label=t("inbound_kpi_unique_numbers", lang), value=f"{unique_numbers:,}",
+                        icon='<span class="maz-kpi-icon-tile"><span class="material-symbols-outlined">group</span></span>',
+                        sub_line=_format_unique_sub(repeated_count, lang),
                     ),
                 ]
             )

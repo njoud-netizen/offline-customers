@@ -236,8 +236,11 @@ TRANSLATIONS = {
     "inbound_subtitle_with_date": {"ar": "سجل المكالمات الواردة · {date}", "en": "Inbound call log · {date}"},
     "inbound_download_csv_label": {"ar": "⬇️ تحميل CSV", "en": "⬇️ Download CSV"},
     "inbound_kpi_serviced": {"ar": "تمت الخدمة", "en": "Serviced"},
-    "inbound_kpi_unique_numbers": {"ar": "أرقام فريدة", "en": "Unique numbers"},
-    "inbound_kpi_unique_sub": {"ar": "{count} رقم اتصل أكثر من مرة", "en": "{count} numbers called more than once"},
+    "inbound_kpi_unique_numbers": {"ar": "عدد المتصلين", "en": "Number of callers"},
+    "inbound_kpi_unique_sub_zero": {"ar": "لا يوجد رقم اتصل أكثر من مرة", "en": "No numbers called more than once"},
+    "inbound_kpi_unique_sub_one": {"ar": "رقم واحد اتصل أكثر من مرة", "en": "1 number called more than once"},
+    "inbound_kpi_unique_sub_two": {"ar": "رقمين اتصلا أكثر من مرة", "en": "2 numbers called more than once"},
+    "inbound_kpi_unique_sub_plural": {"ar": "{count} أرقام اتصلت أكثر من مرة", "en": "{count} numbers called more than once"},
     "inbound_kpi_total_sub": {"ar": "كلها واردة", "en": "All inbound"},
 
     # ==== منطقة الرفع المحسّنة (كل الصفحات) ====

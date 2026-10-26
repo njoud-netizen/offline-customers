@@ -505,6 +505,18 @@ def inject_theme(lang: str) -> None:
         div[class*="st-key-kpi_card_accent_"] .maz-kpi-label {{ color: rgba(255,255,255,0.85); }}
         div[class*="st-key-kpi_card_accent_"] .maz-kpi-value {{ color: {WHITE}; }}
         .maz-kpi-icon {{ font-size: 1.3rem; opacity: 0.9; }}
+        .maz-kpi-icon-tile {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            background: #F1EBFF;
+            vertical-align: middle;
+            margin-inline-end: 2px;
+        }}
+        .maz-kpi-icon-tile .material-symbols-outlined {{ color: #9354FF; font-size: 14px; }}
         .maz-kpi-inner {{ display: flex; flex-direction: column; }}
         .maz-kpi-label {{
             color: var(--text-secondary);
