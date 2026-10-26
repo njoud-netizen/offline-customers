@@ -78,8 +78,6 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
         city = fields.get("city", "")
         details = fields.get("details", "")
         is_complaint = bool(fields.get("flag_commerce_complaint", False))
-        if details:
-            rows_with_details += 1
         if is_complaint:
             complaint_count += 1
 
@@ -96,6 +94,12 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
             if suggested:
                 msg += f" (مقترح: {suggested})"
             review_reasons.append(msg)
+
+        # طلب المستخدم: "Other" لا تُكتب حرفيًا بعمود Details بالملف النهائي — تُترك فاضية،
+        # والتنبيه (سبب المراجعة أعلاه) هو اللي يوضّح إنها تحتاج مراجعة يدوية بدلها.
+        details_display = "" if details == _DETAILS_OTHER else details
+        if details_display:
+            rows_with_details += 1
 
         if r.canonical_company:
             resolved_companies.add(r.canonical_company)
@@ -121,7 +125,7 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
             "WhatsApp&Calls": "",
             "Social Media": "",
             "Subject": "",
-            "Details": details,
+            "Details": details_display,
             "Status": "",
             "Date": _format_date(r.created),
             "company": r.canonical_company or "",
