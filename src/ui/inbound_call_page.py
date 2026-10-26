@@ -70,7 +70,13 @@ def _top_value_insight(series: pd.Series) -> tuple[str, int, float]:
 
 
 def _render_insight_cards(filtered_df: pd.DataFrame, lang: str, company_options: list[str], total_rows_count: int) -> None:
-    with st.container(key="maz_insights_row_wrap"):
+    # استثناء الارتفاع: "كل الشركات" تطول بطاقتها حسب القائمة بس (flex-start)، أما لما تكون
+    # شركة محددة مختارة فالبطاقات الثلاث تتمدد لنفس الارتفاع (stretch) — نقرأ قيمة فلتر
+    # الشركة من session_state *قبل* فتح الحاوية لأن المفتاح نفسه يحدد أي قواعد CSS تُطبَّق
+    # (راجع theme.py: ..._flat مقابل ..._stretch).
+    is_all_companies = not st.session_state.get(CARD_COMPANY_KEY, COMPANY_ALL_VALUE)
+    row_key = "maz_insights_row_wrap_flat" if is_all_companies else "maz_insights_row_wrap_stretch"
+    with st.container(key=row_key):
         st.markdown(f'<p class="maz-card-title" style="margin:4px 0 12px 0;">{t("inbound_insights_title", lang)}</p>', unsafe_allow_html=True)
         col1, col2, col3 = st.columns(3)
 

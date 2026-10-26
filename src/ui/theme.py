@@ -583,23 +583,40 @@ def inject_theme(lang: str) -> None:
             background: {BADGE_SERVICED_DOT};
         }}
 
-        /* ==== بطاقات الأبرز (Insight Cards) ==== */
+        /* ==== بطاقات الأبرز (Insight Cards) ====
+        استثناء مقصود: حالة "كل الشركات" تستخدم مفتاح حاوية مختلف (..._flat) عن حالة اختيار
+        شركة محددة (..._stretch) — بايثون يقرر أي مفتاح يُستخدم حسب session_state *قبل* فتح
+        الحاوية (نفس أسلوب القراءة المبكرة المستخدم بالملف لفلاتر التاريخ/التفاصيل). القواعد
+        المشتركة (margin) تستهدف البادئة العامة؛ الـstretch/الـflex-start كل وحدة بمفتاحها. */
         div[class*="st-key-maz_insights_row_wrap"] {{ margin-bottom: 20px; }}
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stHorizontalBlock"] {{ align-items: stretch !important; }}
-        /* سلسلة height:100% من stColumn لين محتوى كل بطاقة — بروابط مباشرة (>) فقط لا descendant
-        عام، حتى ما تنكسر بطاقات تحتوي ودجتات حقيقية متعددة (بطاقة فلتر الشركة: عدة
-        stElementContainer متجاورة، كل وحدة لعنصر مستقل — لو طبّقنا height:100% على كل
-        descendant بالعمق كان راح يمدد كل عنصر فرعي لحاله بدل ما يتمدد الكرت ككل فقط). */
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] {{
+        /* ملاحظة specificity: نضيف وسم div صراحةً لكل [data-testid] (حتى بالوسيط العام) كي
+        تبقى هذي القواعد أقوى حتمًا من أي نسخة سابقة مخزّنة بذاكرة المتصفح لنفس البادئة
+        العامة "maz_insights_row_wrap" أثناء فترة انتقال النشر (specificity أعلى بدل الاعتماد
+        على ترتيب الظهور بالـcascade وحده). */
+        div[class*="st-key-maz_insights_row_wrap_flat"] div[data-testid="stHorizontalBlock"] {{
+            align-items: flex-start !important;
+        }}
+        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stHorizontalBlock"] {{
+            align-items: stretch !important;
+        }}
+        /* سلسلة height:100% (حالة stretch فقط) من stColumn لين محتوى كل بطاقة — بروابط مباشرة
+        (>) فقط لا descendant عام، حتى ما تنكسر بطاقات تحتوي ودجتات حقيقية متعددة (بطاقة فلتر
+        الشركة: عدة stElementContainer متجاورة، كل وحدة لعنصر مستقل). */
+        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"] {{
             height: 100% !important;
         }}
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] {{
+        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"] {{
             height: 100% !important;
         }}
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] > [data-testid="stMarkdown"],
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] > [data-testid="stMarkdown"] > [data-testid="stMarkdownContainer"],
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] > [data-testid="stVerticalBlock"] {{
+        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"] > div[data-testid="stMarkdown"],
+        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"] > div[data-testid="stMarkdown"] > div[data-testid="stMarkdownContainer"],
+        div[class*="st-key-maz_insights_row_wrap_stretch"] div[data-testid="stColumn"] > div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"] > div[data-testid="stVerticalBlock"] {{
             height: 100% !important;
+        }}
+        div[class*="st-key-maz_insights_row_wrap_stretch"] .maz-insight-card,
+        div[class*="st-key-maz_insights_row_wrap_stretch"] div[class*="st-key-maz_card_company_insight"] {{
+            height: 100% !important;
+            box-sizing: border-box !important;
         }}
         .maz-insight-card {{
             background: var(--surface);
@@ -607,8 +624,7 @@ def inject_theme(lang: str) -> None:
             border-radius: 20px;
             overflow: hidden;
             padding: 16px 18px;
-            height: 100% !important;
-            box-sizing: border-box !important;
+            box-sizing: border-box;
         }}
         /* بطاقة "المكالمات حسب الشركة" — تحتوي ودجت st.selectbox حقيقي فنستخدم st.container(key=)
         بدل .maz-insight-card الخام (نفس قاعدة "الأشرطة البيضاء الفاضية" الموثّقة بالملف). */
@@ -618,8 +634,7 @@ def inject_theme(lang: str) -> None:
             border-radius: 20px;
             overflow: hidden;
             padding: 16px 18px;
-            height: 100% !important;
-            box-sizing: border-box !important;
+            box-sizing: border-box;
         }}
         div[class*="st-key-maz_card_company_insight"] [data-testid="stSelectbox"] {{ margin: 8px 0 16px 0; }}
         /* قائمة "كل الشركات" المنسدلة — إطار/زوايا/ارتفاع/خلفية محددة صراحةً */
