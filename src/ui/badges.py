@@ -13,6 +13,10 @@ _KNOWN_DETAILS_LABELS = {
     "website": ("الموقع", "maz-badge-other"),
 }
 
+_KNOWN_STATUS_LABELS = {
+    "serviced": ("تمت الخدمة", "maz-badge-serviced"),
+}
+
 
 def details_badge_html(value: str) -> str:
     raw = (value or "").strip()
@@ -31,10 +35,12 @@ def status_badge_html(value: str) -> str:
     raw = (value or "").strip()
     if not raw:
         return '<span class="maz-badge-pill maz-badge-other">—</span>'
-    if raw.lower() == "serviced":
+    known = _KNOWN_STATUS_LABELS.get(raw.lower())
+    if known:
+        label, css_class = known
         return (
-            f'<span class="maz-badge-pill maz-badge-serviced">'
-            f'<span class="maz-status-dot"></span>{html.escape(raw)}</span>'
+            f'<span class="maz-badge-pill {css_class}">'
+            f'<span class="maz-status-dot"></span>{html.escape(label)}</span>'
         )
     return f'<span class="maz-badge-pill maz-badge-other">{html.escape(raw)}</span>'
 

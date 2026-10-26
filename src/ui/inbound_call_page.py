@@ -3,9 +3,11 @@
 (inbound_table.py). المنطق الفعلي كله بـ src/inbound_pipeline.py — مسار مستقل تمامًا عن
 run_pipeline الحالي، بدون أي تعديل عليه هنا.
 
-ملاحظة معمارية مهمة: الفلاتر تُصيَّر أولًا (render_filter_bar) لأن بطاقات KPI/المؤشرات
-يجب تتفاعل معها، رغم إن المواصفة البصرية تضعها داخل بطاقة الجدول بصريًا — Streamlit يُصيَّر
-من أعلى لأسفل بمرة واحدة فلا توجد طريقة لودجت لاحق يُغذّي محتوى أعلاه بنفس التشغيلة."""
+ملاحظة معمارية: compute_filtered() يحسب الصفوف المفلترة (من session_state مباشرة، بدون رسم
+أي ودجت) مبكرًا لتغذية KPI/المؤشرات، بينما render_filter_toolbar() يرسم شريط الفلاتر نفسه
+بصريًا لاحقًا بموضعه الصحيح (فوق الجدول مباشرة) — راجع inbound_table.py للتفاصيل. الهيدر
+أيضًا يُعاد رسمه عبر st.empty() (header_box) فور توفر النتائج ليصير "نتائج الاستخراج" بدل
+هيدر الرفع الافتراضي، مع زر تحميل CSV."""
 from datetime import date
 
 import pandas as pd
@@ -16,10 +18,9 @@ from src.config import load_config
 from src.inbound_pipeline import run_inbound_import
 from src.translations import t
 
-from . import theme
 from .empty_state import render_empty_state
-from .header import render_footer, render_page_header
-from .inbound_table import render_filter_bar, render_table_body
+from .header import render_footer, render_page_header, render_results_header
+from .inbound_table import compute_filtered, render_filter_toolbar, render_table_body
 from .kpi_card import KPICardData, render_kpi_row
 from .phone_format import format_phone_display
 from .step_indicator import render_step_indicator
@@ -82,7 +83,7 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str) -> None:
         top_value_display = top3.index[0] if not top3.empty else "—"
         st.markdown(
             f'<div class="maz-insight-card">'
-            f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">forum</span></div>'
+            f'<div class="maz-insight-icon-tile maz-tile-reason"><span class="material-symbols-outlined">forum</span></div>'
             f'<div class="maz-insight-label">{t("inbound_insight_top_reason", lang)}</div>'
             f'<div class="maz-insight-value" style="font-size:16px;">{top_value_display}</div>'
             f"{bars_html}{no_reason_line}"
@@ -99,13 +100,14 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str) -> None:
             rows_for_number = filtered_df[filtered_df["Number"] == number]
             common_reason, _, _ = _top_value_insight(rows_for_number.get("Details", pd.Series(dtype=str)))
         display_number = format_phone_display(number) if number else "—"
-        meta = common_reason if common_reason else t("inbound_insight_empty", lang)
+        meta_reason = common_reason if common_reason else t("inbound_insight_empty", lang)
+        count_pill = f'<span class="maz-insight-count-pill">×{count}</span>' if count else ""
         st.markdown(
             f'<div class="maz-insight-card">'
-            f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">call</span></div>'
+            f'<div class="maz-insight-icon-tile maz-tile-number"><span class="material-symbols-outlined">call</span></div>'
             f'<div class="maz-insight-label">{t("inbound_insight_top_number", lang)}</div>'
             f'<div class="maz-insight-value" dir="ltr" style="font-size:18px;">{display_number}</div>'
-            f'<div class="maz-insight-meta">{t("inbound_insight_times", lang).format(count=count)} · {meta}</div>'
+            f'<div class="maz-insight-meta">{count_pill}{t("inbound_insight_calls_reason", lang).format(reason=meta_reason)}</div>'
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -119,12 +121,13 @@ def inbound_call_page() -> None:
     step_labels = [t("inbound_step_upload_label", lang), t("inbound_step_process_label", lang), t("inbound_step_results_label", lang)]
 
     today_str = date.today().strftime("%Y-%m-%d")
-    render_page_header(
-        t("inbound_call_title", lang),
-        t("inbound_subtitle_with_date", lang).format(date=today_str),
-        lang,
-        eyebrow=t("eyebrow_inbound", lang),
-    )
+    subtitle = t("inbound_subtitle_with_date", lang).format(date=today_str)
+
+    header_box = st.empty()
+    with header_box.container():
+        render_page_header(
+            t("inbound_call_title", lang), subtitle, lang, eyebrow=t("eyebrow_inbound", lang),
+        )
 
     step_box = st.empty()
 
@@ -175,12 +178,26 @@ def inbound_call_page() -> None:
     if result is not None:
         with step_box.container():
             render_step_indicator("results", step_labels, steps=_INBOUND_STEPS)
-        st.success(t("inbound_success_processed", lang))
 
         if not result.rows:
+            st.success(t("inbound_success_processed", lang))
             render_empty_state(t("inbound_warning_no_rows", lang))
         else:
-            filtered_df, group_enabled = render_filter_bar(result.rows, lang)
+            filtered_df, group_enabled, filter_state, df_with_date = compute_filtered(result.rows, lang)
+            csv_bytes = filtered_df.to_csv(index=False).encode("utf-8-sig")
+
+            with header_box.container():
+                render_results_header(
+                    eyebrow=t("eyebrow_inbound", lang),
+                    title=t("inbound_subheader_results", lang),
+                    subtitle=subtitle,
+                    download_label=t("inbound_download_csv_label", lang),
+                    download_data=csv_bytes,
+                    download_filename="inbound_calls_filtered.csv",
+                    download_mime="text/csv",
+                )
+
+            st.success(t("inbound_success_processed", lang))
 
             total = len(filtered_df)
             serviced_count = int((filtered_df["Call Status"].astype(str).str.lower() == "serviced").sum())
@@ -197,7 +214,7 @@ def inbound_call_page() -> None:
                     ),
                     KPICardData(
                         label=t("inbound_kpi_serviced", lang), value=f"{serviced_count:,}", icon="✅",
-                        progress_pct=serviced_pct, value_color=theme.PURPLE_DEEP,
+                        progress_pct=serviced_pct,
                     ),
                     KPICardData(
                         label=t("inbound_kpi_unique_numbers", lang), value=f"{unique_numbers:,}", icon="🔢",
@@ -208,6 +225,7 @@ def inbound_call_page() -> None:
 
             _render_insight_cards(filtered_df, lang)
 
+            render_filter_toolbar(df_with_date, filter_state, lang)
             render_table_body(len(result.rows), filtered_df, group_enabled, lang)
 
         if result.needs_review:

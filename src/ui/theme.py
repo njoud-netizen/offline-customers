@@ -57,13 +57,21 @@ GRADIENT_PRIMARY = f"linear-gradient(135deg, {MAZNEXA_PURPLE} 0%, {PURPLE_WAVE} 
 GRADIENT_SOFT = f"linear-gradient(135deg, rgba(147,84,255,0.10) 0%, rgba(104,62,181,0.04) 100%)"
 
 # ==== شارات الحالة/التصنيف (Pill Badges) — بنفسجي فقط (استبدال الأخضر/الأزرق/الأصفر السابقين) ====
-BADGE_SERVICED_TEXT = "#5B21B6"
-BADGE_SERVICED_BG = "#F1EAFF"
-BADGE_SERVICED_DOT = "#9354FF"  # نقطة الحالة بالشارة + نفس لون شريط تقدم KPI "تمت الخدمة"
-BADGE_OFFERS_TEXT = "#FFFFFF"
-BADGE_OFFERS_BG = "#9354FF"
-BADGE_ORDER_TEXT = "#2E1065"
-BADGE_ORDER_BG = "#E4D7FF"
+BADGE_SERVICED_TEXT = SUCCESS
+BADGE_SERVICED_BG = "#E7F8F0"
+BADGE_SERVICED_DOT = SUCCESS  # نقطة الحالة بالشارة + نفس لون شريط تقدم KPI "تمت الخدمة"
+BADGE_OFFERS_TEXT = PURPLE_V2
+BADGE_OFFERS_BG = "#F1EAFF"
+BADGE_ORDER_TEXT = "#2563EB"
+BADGE_ORDER_BG = "#E8F0FE"
+# ألوان بطاقات "أبرز المؤشرات" — كل بطاقة بلون مختلف حسب الصورة المرجعية (سبب الاتصال
+# أزرق، أكثر رقم اتصل كهرماني) بدل اللون البنفسجي الموحّد السابق لهذا القسم تحديدًا
+INSIGHT_TILE_REASON_BG = "#E8F0FE"
+INSIGHT_ICON_REASON = "#3B82F6"
+INSIGHT_TILE_NUMBER_BG = "#FEF3C7"
+INSIGHT_ICON_NUMBER = "#D97706"
+INSIGHT_COUNT_PILL_BG = "#FEF3C7"
+INSIGHT_COUNT_PILL_TEXT = "#92400E"
 BADGE_OTHER_TEXT = "#6B6880"
 BADGE_OTHER_BG = "#F3F0FA"
 BADGE_REPEAT_TEXT = "#FFFFFF"
@@ -345,6 +353,28 @@ def inject_theme(lang: str) -> None:
             color: var(--text-secondary);
             margin-top: 4px;
         }}
+        /* شريط عنوان "نتائج الاستخراج" بعد المعالجة — بدون بطاقة/حدود (خلفية الصفحة مباشرة)
+        + زر تحميل CSV بالجهة المقابلة، حسب الصورة المرجعية */
+        div[class*="st-key-maz_results_header"] {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 22px;
+        }}
+        div[class*="st-key-maz_results_header"] > div {{ width: 100%; }}
+        div[class*="st-key-maz_results_header"] h1 {{
+            font-size: 34px;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin: 0;
+            line-height: 1.25;
+        }}
+        div[class*="st-key-maz_results_header"] .maz-page-subtitle {{
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }}
         .maz-page-header .maz-page-meta {{
             font-size: 0.78rem;
             color: var(--text-secondary);
@@ -546,9 +576,23 @@ def inject_theme(lang: str) -> None:
             margin-bottom: 10px;
         }}
         .maz-insight-icon-tile .material-symbols-outlined {{ color: {PURPLE_LINK}; font-size: 20px; }}
+        .maz-insight-icon-tile.maz-tile-reason {{ background: {INSIGHT_TILE_REASON_BG}; }}
+        .maz-insight-icon-tile.maz-tile-reason .material-symbols-outlined {{ color: {INSIGHT_ICON_REASON}; }}
+        .maz-insight-icon-tile.maz-tile-number {{ background: {INSIGHT_TILE_NUMBER_BG}; }}
+        .maz-insight-icon-tile.maz-tile-number .material-symbols-outlined {{ color: {INSIGHT_ICON_NUMBER}; }}
         .maz-insight-label {{ color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 4px; }}
         .maz-insight-value {{ color: var(--text-primary); font-weight: 800; font-size: 22px; line-height: 1.3; }}
         .maz-insight-meta {{ color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; }}
+        .maz-insight-count-pill {{
+            display: inline-block;
+            background: {INSIGHT_COUNT_PILL_BG};
+            color: {INSIGHT_COUNT_PILL_TEXT};
+            font-size: 0.76rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+            margin-inline-end: 6px;
+        }}
         .maz-mini-bar-row {{ display: flex; align-items: center; gap: 8px; margin-top: 6px; }}
         .maz-mini-bar-label {{ font-size: 0.76rem; color: var(--text-secondary); min-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
         .maz-mini-bar-track {{ flex: 1; height: 6px; border-radius: 999px; background: {PURPLE_TINT}; overflow: hidden; }}
@@ -678,6 +722,9 @@ def inject_theme(lang: str) -> None:
         }}
         table.maz-table tbody tr:nth-child(even) {{ background: #FCFBFE; }}
         table.maz-table tbody tr:hover {{ background: {GRADIENT_SOFT}, var(--surface); }}
+        table.maz-table tbody td[dir="ltr"] {{ font-weight: 700; }}
+        .maz-call-type {{ display: inline-flex; align-items: center; gap: 6px; }}
+        .maz-call-type .material-symbols-outlined {{ color: {TEXT_MUTED}; font-size: 16px; }}
 
         /* ==== حالة فارغة ==== */
         .maz-empty-state {{

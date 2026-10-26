@@ -2,11 +2,14 @@
 فلاتر (بحث بالرقم/تاريخ/حالة/تفاصيل)، دمج أرقام مكررة اختياري، إخفاء أعمدة فاضية تلقائيًا،
 ترقيم صفحات (25/صفحة)، وتصدير CSV للعرض المفلتر بالقيم الخام.
 
-مقسوم لدالتين عمدًا: render_filter_bar() ثم render_table_body() — لأن بطاقات KPI/المؤشرات
-بصفحة Inbound Call يجب تتفاعل مع نفس الفلاتر (مطلوب صراحة)، لكنها تظهر بصريًا *قبل* الجدول.
-Streamlit يُصيّر بالتسلسل من أعلى لأسفل بمرة واحدة فلا يمكن لودجت يظهر لاحقًا يُغذّي محتوى
-أعلاه بنفس التشغيلة — الحل: الفلاتر تُصيَّر أولًا (تعيد DataFrame مفلتر)، تُستخدم لحساب
-KPI/المؤشرات، ثم جدول الإخراج النهائي يُصيَّر بعدها بنفس البيانات المفلترة.
+مقسوم لثلاث دوال عمدًا: compute_filtered() (حساب بدون رسم، يُستخدم لتغذية KPI/المؤشرات
+مبكرًا) ثم render_filter_toolbar() (رسم الودجتات بصريًا بموضعها الصحيح فوق الجدول مباشرة)
+ثم render_table_body() — لأن بطاقات KPI/المؤشرات بصفحة Inbound Call يجب تتفاعل مع نفس
+الفلاتر (مطلوب صراحة) لكنها تظهر بصريًا *قبلها*. الحل: compute_filtered() يقرأ قيم الفلاتر
+من session_state مباشرة (بدون استدعاء أي ودجت) — الودجتات المفتاحة (key=) تُزامِن قيمها مع
+الواجهة الأمامية قبل تشغيل أي سطر كود بالتشغيلة، بغض النظر عن مكان استدعاء الودجت نفسه، فتبقى
+القيمة صحيحة سواء قُرئت قبل أو بعد الاستدعاء الفعلي. render_filter_toolbar() لاحقًا يرسم نفس
+الودجتات (بنفس المفاتيح) بموضعها البصري الصحيح — بدون أي إعادة حساب للفلترة نفسها.
 
 لا علاقة لهذا الملف بـ inbound_pipeline.py — يقرأ فقط قائمة dict الجاهزة (result.rows) ويعرضها،
 بدون أي تعديل على البيانات المصدرية أو منطق الاستخراج."""
@@ -33,6 +36,14 @@ def _digits_only(text: str) -> str:
     return re.sub(r"\D", "", text or "")
 
 
+def _call_type_html(value: str, lang: str) -> str:
+    raw = (value or "").strip()
+    if raw.lower() == "inbound":
+        label = t("inbound_call_direction_inbound", lang)
+        return f'<span class="maz-call-type"><span class="material-symbols-outlined">call_received</span>{html.escape(label)}</span>'
+    return html.escape(raw) if raw else "—"
+
+
 def _col_label(col: str, lang: str) -> str:
     return {
         "Date": t("inbound_table_col_date", lang),
@@ -44,59 +55,91 @@ def _col_label(col: str, lang: str) -> str:
     }.get(col, col)
 
 
-def render_filter_bar(rows: list[dict], lang: str) -> tuple[pd.DataFrame, bool]:
-    """يرجع (filtered_df, group_enabled). filtered_df دائمًا قبل أي تجميع — نفس الصفوف
-    بشكلها الأصلي بعد الفلترة فقط، تُستخدم لحساب KPI/المؤشرات وللجدول معًا."""
-    df = pd.DataFrame(rows)
-    if df.empty:
-        return df, False
+def _filter_state_from_session(df: pd.DataFrame) -> dict:
+    """يقرأ قيم الفلاتر الحالية من session_state (أو قيمها الافتراضية لو لسا ودجتات
+    الفلاتر ما اترسمت بهذا التشغيلة) — بدون رسم أي ودجت. يسمح بحساب filtered_df *قبل*
+    موضع ظهور شريط الفلاتر بصريًا (بعد 'أبرز المؤشرات' مباشرة، قبل الجدول)، لأن الودجتات
+    المفتاحة (key=) تُزامِن session_state مع الواجهة الأمامية قبل تشغيل أي سطر كود، بغض
+    النظر عن مكان استدعاء الودجت نفسه بالسكربت."""
+    valid_dates = df["_date_parsed"].dropna()
+    date_default = None
+    if not valid_dates.empty:
+        min_d, max_d = valid_dates.min(), valid_dates.max()
+        today = _date.today()
+        date_default = (today, today) if min_d <= today <= max_d else (min_d, max_d)
+    status_options = sorted(v for v in df["Call Status"].dropna().unique().tolist() if str(v).strip())
+    details_options = sorted(v for v in df["Details"].dropna().unique().tolist() if str(v).strip())
+    return {
+        "search_term": st.session_state.get("inbound_filter_search", ""),
+        "date_filter": st.session_state.get("inbound_filter_date", date_default),
+        "status_options": status_options,
+        "status_filter": st.session_state.get("inbound_filter_status", status_options),
+        "details_options": details_options,
+        "details_filter": st.session_state.get("inbound_filter_details", details_options),
+        "group_enabled": st.session_state.get("inbound_filter_group", False),
+    }
 
-    df["_date_parsed"] = pd.to_datetime(df["Date"], errors="coerce").dt.date
 
-    with st.container(key="maz_card_inbound_filters"):
-        col_search, col_date, col_status, col_details, col_group = st.columns([1.4, 1.3, 1.1, 1.3, 1])
-        with col_search:
-            search_term = st.text_input(t("inbound_table_search_label", lang), key="inbound_filter_search")
-        with col_date:
-            valid_dates = df["_date_parsed"].dropna()
-            date_filter = None
-            if not valid_dates.empty:
-                min_d, max_d = valid_dates.min(), valid_dates.max()
-                today = _date.today()
-                default_range = (today, today) if min_d <= today <= max_d else (min_d, max_d)
-                date_filter = st.date_input(
-                    t("inbound_table_date_range_label", lang), value=default_range,
-                    min_value=min_d, max_value=max_d, key="inbound_filter_date",
-                )
-        with col_status:
-            status_options = sorted(v for v in df["Call Status"].dropna().unique().tolist() if str(v).strip())
-            status_filter = st.multiselect(
-                t("inbound_table_status_label", lang), options=status_options, default=status_options,
-                key="inbound_filter_status",
-            )
-        with col_details:
-            details_options = sorted(v for v in df["Details"].dropna().unique().tolist() if str(v).strip())
-            details_filter = st.multiselect(
-                t("inbound_table_details_label", lang), options=details_options, default=details_options,
-                key="inbound_filter_details",
-            )
-        with col_group:
-            st.markdown("<div style='height:1.6rem'></div>", unsafe_allow_html=True)
-            group_enabled = st.toggle(t("inbound_table_group_toggle", lang), value=False, key="inbound_filter_group")
-
+def _apply_filter_mask(df: pd.DataFrame, state: dict) -> pd.DataFrame:
     mask = pd.Series(True, index=df.index)
-    if search_term:
-        digits = _digits_only(search_term)
+    if state["search_term"]:
+        digits = _digits_only(state["search_term"])
         if digits:
             mask &= df["Number"].astype(str).apply(_digits_only).str.contains(digits, na=False)
+    date_filter = state["date_filter"]
     if isinstance(date_filter, tuple) and len(date_filter) == 2:
         start_d, end_d = date_filter
         mask &= df["_date_parsed"].isna() | ((df["_date_parsed"] >= start_d) & (df["_date_parsed"] <= end_d))
+    status_filter = state["status_filter"]
     mask &= df["Call Status"].isin(status_filter) | ~df["Call Status"].astype(bool) if status_filter else False
+    details_filter = state["details_filter"]
     mask &= df["Details"].isin(details_filter) | ~df["Details"].astype(bool) if details_filter else False
+    return df[mask]
 
-    filtered_df = df[mask].drop(columns=["_date_parsed"])
-    return filtered_df, group_enabled
+
+def compute_filtered(rows: list[dict], lang: str) -> tuple[pd.DataFrame, bool, dict, pd.DataFrame]:
+    """يرجع (filtered_df, group_enabled, filter_state, df_with_date). يُستخدم لحساب
+    KPI/المؤشرات *قبل* رسم شريط الفلاتر بصريًا (render_filter_toolbar أدناه، يُستدعى لاحقًا
+    بموضعه الصحيح فوق الجدول مباشرة) — بدون رسم أي ودجت هنا، فقط قراءة session_state."""
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return df, False, {}, df
+    df["_date_parsed"] = pd.to_datetime(df["Date"], errors="coerce").dt.date
+    state = _filter_state_from_session(df)
+    filtered_df = _apply_filter_mask(df, state).drop(columns=["_date_parsed"])
+    return filtered_df, state["group_enabled"], state, df
+
+
+def render_filter_toolbar(df_with_date: pd.DataFrame, state: dict, lang: str) -> None:
+    """يرسم شريط الفلاتر بصريًا فقط (فوق الجدول مباشرة) — لا يُعيد حساب أي فلترة؛ نفس
+    مفاتيح session_state المستخدمة بـcompute_filtered أعلاه فتبقى القيم متوافقة دائمًا."""
+    if df_with_date.empty:
+        return
+    with st.container(key="maz_card_inbound_filters"):
+        col_search, col_date, col_status, col_details, col_group = st.columns([1.4, 1.3, 1.1, 1.3, 1])
+        with col_search:
+            st.text_input(t("inbound_table_search_label", lang), key="inbound_filter_search")
+        with col_date:
+            valid_dates = df_with_date["_date_parsed"].dropna()
+            if not valid_dates.empty:
+                min_d, max_d = valid_dates.min(), valid_dates.max()
+                st.date_input(
+                    t("inbound_table_date_range_label", lang), value=state["date_filter"],
+                    min_value=min_d, max_value=max_d, key="inbound_filter_date",
+                )
+        with col_status:
+            st.multiselect(
+                t("inbound_table_status_label", lang), options=state["status_options"],
+                default=state["status_options"], key="inbound_filter_status",
+            )
+        with col_details:
+            st.multiselect(
+                t("inbound_table_details_label", lang), options=state["details_options"],
+                default=state["details_options"], key="inbound_filter_details",
+            )
+        with col_group:
+            st.markdown("<div style='height:1.6rem'></div>", unsafe_allow_html=True)
+            st.toggle(t("inbound_table_group_toggle", lang), value=False, key="inbound_filter_group")
 
 
 def _group_rows(df: pd.DataFrame) -> pd.DataFrame:
@@ -191,6 +234,8 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
             for col in visible_cols_final:
                 if col == "Number":
                     cells.append(f'<td dir="ltr">{html.escape(format_phone_display(r[col]))}</td>')
+                elif col == "Inbound calls/out bound calls":
+                    cells.append(f"<td>{_call_type_html(r[col], lang)}</td>")
                 elif col == "Call Status":
                     cells.append(f"<td>{status_badge_html(r[col])}</td>")
                 elif col == "Details":

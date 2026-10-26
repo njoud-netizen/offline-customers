@@ -267,6 +267,8 @@ TRANSLATIONS = {
     "inbound_insight_of_total": {"ar": "{pct}% من الإجمالي", "en": "{pct}% of total"},
     "inbound_insight_times": {"ar": "×{count} مرة", "en": "×{count} times"},
     "inbound_insight_empty": {"ar": "لا توجد بيانات كافية", "en": "Not enough data"},
+    "inbound_insight_calls_reason": {"ar": "مكالمات اليوم، السبب: {reason}", "en": "Today's calls, reason: {reason}"},
+    "inbound_call_direction_inbound": {"ar": "واردة", "en": "Inbound"},
 
     "inbound_table_search_label": {"ar": "🔍 بحث بالرقم", "en": "🔍 Search by number"},
     "inbound_table_date_range_label": {"ar": "📅 نطاق التاريخ", "en": "📅 Date range"},
