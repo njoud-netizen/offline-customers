@@ -14,20 +14,21 @@ from .aggregations import aggregate_offline_by_brand
 
 
 def _side_legend(title: str) -> alt.Legend:
-    """Legend بوضع Vega-Lite الافتراضي (عمودي، يمين الرسم) — الأكثر استقرارًا وأقل
-    عرضة لتراكب النصوص من أي تخصيص أفقي علوي."""
-    return alt.Legend(title=title, labelLimit=160)
+    """Legend أفقي أسفل الرسم مباشرة (orient="bottom") بدل الوضع الجانبي الافتراضي — يعطي
+    مساحة كافية لعرض الأسماء كاملة بدون قصّ؛ labelLimit=0 يُلغي أي حدّ أقصى لطول النص
+    صراحةً (Vega-Lite: 0 = بدون قصّ)."""
+    return alt.Legend(title=title, orient="bottom", labelLimit=0)
+
+
+# ألوان الشرائح الغامقة اللي تحتاج نص أبيض فوقها (حسب الطلب الصريح) — أي لون ثاني (بما فيها
+# أي براند مستقبلي بلون غير معروف عبر DEFAULT_COLOR) ياخذ نص #2E1866 الداكن تلقائيًا.
+_DARK_SLICE_COLORS = {"#2E1866", "#9354FF"}
 
 
 def _readable_text_color(hex_color: str) -> str:
-    """يحسب لون نص (أبيض/داكن) يضمن تباينًا مقروءًا فوق لون خلفية معطى (صيغة YIQ
-    المعتادة لقياس السطوع المُدرَك) — يعمل بشكل صحيح لأي لون مستقبلي من brand_color_map.
-    ملاحظة: الفرع الداكن أبيض ثابت (وليس theme.TEXT_PRIMARY) عمدًا — بالثيم الفاتح الحالي
-    TEXT_PRIMARY نفسه داكن، فلو استُخدم كنص فوق شريحة داكنة يصير غير مقروء (داكن فوق داكن)."""
-    h = hex_color.lstrip("#")
-    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-    yiq = (r * 299 + g * 587 + b * 114) / 1000
-    return theme.CHARCOAL if yiq >= 150 else theme.WHITE
+    """أبيض فوق الشرائح الغامقة المحدَّدة صراحةً (#2E1866 وَ#9354FF)، وإلا #2E1866 الداكن
+    فوق أي شريحة فاتحة ثانية — بدل حساب YIQ تلقائي سابقًا."""
+    return theme.WHITE if hex_color.upper() in _DARK_SLICE_COLORS else "#2E1866"
 
 
 def build_offline_donut_chart(df_offline: pd.DataFrame, lang: str):
@@ -40,8 +41,11 @@ def build_offline_donut_chart(df_offline: pd.DataFrame, lang: str):
     total_count = int(agg["count"].sum())
 
     agg = agg.copy()
-    # تسمية Data Label داخل كل شريحة: نسبة مئوية فقط (بدون الرقم الخام).
-    agg["pct_label"] = agg["pct_of_total"].round(0).astype(int).astype(str) + "%"
+    # تسمية Data Label داخل كل شريحة: نسبة مئوية فقط (بدون الرقم الخام) — تُخفى تمامًا لو
+    # أقل من 2% (نص فاضي بدل "0%" أو "1%" مزدحم داخل شريحة صغيرة جدًا).
+    agg["pct_label"] = [
+        f"{round(p):.0f}%" if p >= 2.0 else "" for p in agg["pct_of_total"]
+    ]
     agg["label_text_color"] = [_readable_text_color(color_map[c]) for c in agg["company_name"]]
     # الليجند الآن يعرض اسم البراند + العدد معًا (طلب صريح جديد) — حقل منفصل للّون بدل
     # company_name مباشرة، بنفس ترتيب صفوف agg حتى يبقى كل براند بلونه الحتمي الصحيح.
@@ -99,4 +103,5 @@ def build_offline_donut_chart(df_offline: pd.DataFrame, lang: str):
     )
     center_df = pd.DataFrame({"label": [str(total_count)]})
     center_text = alt.Chart(center_df).mark_text(size=36, fontWeight="bold", color=theme.TEXT_PRIMARY).encode(text="label:N")
-    return (base + pct_labels + center_text).properties(height=400), agg
+    # ارتفاع أكبر قليلاً (كان 400) ليتسع الـlegend الأفقي أسفل الرسم بدون ازدحام مع الدونات.
+    return (base + pct_labels + center_text).properties(height=460), agg

@@ -85,11 +85,11 @@ BADGE_REPEAT_BG = "#5B21B6"
 # ترتيب ثابت للألوان الفئوية (Categorical) بالرسوم — نفس البراند ياخذ نفس اللون دائمًا، عائلة
 # بنفسجي بالكامل حصرًا (قيم حرفية من المواصفة). أي براند غير مذكور هنا ياخذ DEFAULT_COLOR.
 BRAND_COLORS = {
-    "BedHouse": "#9354FF",
     "BedQuarterKSA": "#2E1866",
-    "LaZBoy": "#5B2BB5",
-    "BedQuarterBAH": "#B794FF",
-    "BedQuarterUAE": "#D6C4FF",
+    "BedHouse": "#9354FF",
+    "LaZBoy": "#C2A3FF",
+    "BedQuarterBAH": "#E3D6FF",
+    "BedQuarterUAE": "#A7A3B8",
 }
 DEFAULT_COLOR = "#A7A3B8"
 FALLBACK_BRAND_COLOR = DEFAULT_COLOR
