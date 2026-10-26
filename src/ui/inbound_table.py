@@ -1,6 +1,7 @@
 """جدول HTML مخصّص لنتائج صفحة Inbound Call — ترويسة ثابتة، تلوين صفوف متبادل، شارات ملوّنة،
-فلاتر (بحث بالرقم/تاريخ/حالة/تفاصيل)، دمج أرقام مكررة اختياري، إخفاء أعمدة فاضية تلقائيًا،
-ترقيم صفحات (25/صفحة)، وتصدير CSV للعرض المفلتر بالقيم الخام.
+فلاتر (بحث بالرقم/تاريخ/تفاصيل — بدون فلتر حالة، عمود "حالة المكالمة" غير قابل للفلترة عمدًا)،
+دمج أرقام مكررة اختياري، إخفاء أعمدة فاضية تلقائيًا، ترقيم صفحات (25/صفحة)، وتصدير CSV
+للعرض المفلتر بالقيم الخام.
 
 مقسوم لثلاث دوال عمدًا: compute_filtered() (حساب بدون رسم، يُستخدم لتغذية KPI/المؤشرات
 مبكرًا) ثم render_filter_toolbar() (رسم الودجتات بصريًا بموضعها الصحيح فوق الجدول مباشرة)
@@ -30,6 +31,8 @@ PAGE_SIZE = 25
 _DISPLAY_COLS = ["Date", "Number", "Inbound calls/out bound calls", "Call Status", "Details"]
 _SESSION_PAGE_KEY = "inbound_table_page"
 _SESSION_SHOW_ALL_COLS_KEY = "inbound_table_show_all_cols"
+_DETAILS_ALL_VALUE = ""  # قيمة داخلية ثابتة (غير مترجمة) لخيار "الكل" بقائمة التفاصيل —
+# مستقلة عن اللغة فلا تتأثر بتبديل عربي/إنجليزي بمنتصف الجلسة (النص المعروض عبر format_func)
 
 
 def _digits_only(text: str) -> str:
@@ -67,20 +70,19 @@ def _filter_state_from_session(df: pd.DataFrame) -> dict:
         min_d, max_d = valid_dates.min(), valid_dates.max()
         today = _date.today()
         date_default = (today, today) if min_d <= today <= max_d else (min_d, max_d)
-    status_options = sorted(v for v in df["Call Status"].dropna().unique().tolist() if str(v).strip())
     details_options = sorted(v for v in df["Details"].dropna().unique().tolist() if str(v).strip())
     return {
         "search_term": st.session_state.get("inbound_filter_search", ""),
         "date_filter": st.session_state.get("inbound_filter_date", date_default),
-        "status_options": status_options,
-        "status_filter": st.session_state.get("inbound_filter_status", status_options),
         "details_options": details_options,
-        "details_filter": st.session_state.get("inbound_filter_details", details_options),
+        "details_filter": st.session_state.get("inbound_filter_details", _DETAILS_ALL_VALUE),
         "group_enabled": st.session_state.get("inbound_filter_group", False),
     }
 
 
 def _apply_filter_mask(df: pd.DataFrame, state: dict) -> pd.DataFrame:
+    """لا فلترة على عمود الحالة إطلاقًا (حُذف الفلتر بالكامل حسب الطلب) — عمود "حالة
+    المكالمة" بالجدول يبقى كما هو دائمًا بغض النظر عن باقي الفلاتر."""
     mask = pd.Series(True, index=df.index)
     if state["search_term"]:
         digits = _digits_only(state["search_term"])
@@ -90,10 +92,9 @@ def _apply_filter_mask(df: pd.DataFrame, state: dict) -> pd.DataFrame:
     if isinstance(date_filter, tuple) and len(date_filter) == 2:
         start_d, end_d = date_filter
         mask &= df["_date_parsed"].isna() | ((df["_date_parsed"] >= start_d) & (df["_date_parsed"] <= end_d))
-    status_filter = state["status_filter"]
-    mask &= df["Call Status"].isin(status_filter) | ~df["Call Status"].astype(bool) if status_filter else False
     details_filter = state["details_filter"]
-    mask &= df["Details"].isin(details_filter) | ~df["Details"].astype(bool) if details_filter else False
+    if details_filter and details_filter != _DETAILS_ALL_VALUE:
+        mask &= df["Details"] == details_filter
     return df[mask]
 
 
@@ -116,7 +117,7 @@ def render_filter_toolbar(df_with_date: pd.DataFrame, state: dict, lang: str) ->
     if df_with_date.empty:
         return
     with st.container(key="maz_card_inbound_filters"):
-        col_search, col_date, col_status, col_details, col_group = st.columns([1.4, 1.3, 1.1, 1.3, 1])
+        col_search, col_date, col_details, col_group = st.columns([1.6, 1.3, 1.3, 1.1])
         with col_search:
             st.text_input(t("inbound_table_search_label", lang), key="inbound_filter_search")
         with col_date:
@@ -127,15 +128,12 @@ def render_filter_toolbar(df_with_date: pd.DataFrame, state: dict, lang: str) ->
                     t("inbound_table_date_range_label", lang), value=state["date_filter"],
                     min_value=min_d, max_value=max_d, key="inbound_filter_date",
                 )
-        with col_status:
-            st.multiselect(
-                t("inbound_table_status_label", lang), options=state["status_options"],
-                default=state["status_options"], key="inbound_filter_status",
-            )
         with col_details:
-            st.multiselect(
-                t("inbound_table_details_label", lang), options=state["details_options"],
-                default=state["details_options"], key="inbound_filter_details",
+            details_select_options = [_DETAILS_ALL_VALUE] + state["details_options"]
+            st.selectbox(
+                t("inbound_table_details_label", lang), options=details_select_options,
+                format_func=lambda v: t("filter_all_option", lang) if v == _DETAILS_ALL_VALUE else v,
+                key="inbound_filter_details",
             )
         with col_group:
             st.markdown("<div style='height:1.6rem'></div>", unsafe_allow_html=True)

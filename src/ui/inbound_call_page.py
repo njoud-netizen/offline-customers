@@ -39,78 +39,75 @@ def _top_value_insight(series: pd.Series) -> tuple[str, int, float]:
 
 
 def _render_insight_cards(filtered_df: pd.DataFrame, lang: str) -> None:
-    st.markdown(f'<p class="maz-card-title" style="margin:4px 0 12px 0;">{t("inbound_insights_title", lang)}</p>', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns(3)
+    with st.container(key="maz_card_insights_row"):
+        st.markdown(f'<p class="maz-card-title" style="margin:4px 0 12px 0;">{t("inbound_insights_title", lang)}</p>', unsafe_allow_html=True)
+        col1, col2, col3 = st.columns(3)
 
-    # ==== أكثر شركة ====
-    with col1:
-        company, count, pct = _top_value_insight(filtered_df.get("company", pd.Series(dtype=str)))
-        meta = t("inbound_insight_of_total", lang).format(pct=f"{pct:.0f}") if company else t("inbound_insight_empty", lang)
-        st.markdown(
-            f'<div class="maz-insight-card">'
-            f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">business</span></div>'
-            f'<div class="maz-insight-label">{t("inbound_insight_top_company", lang)}</div>'
-            f'<div class="maz-insight-value">{company or "—"}</div>'
-            f'<div class="maz-insight-meta">{t("inbound_insight_times", lang).format(count=count)} · {meta}</div>'
-            f"</div>",
-            unsafe_allow_html=True,
-        )
-
-    # ==== أكثر سبب اتصال (Details) ====
-    with col2:
-        details_series = filtered_df.get("Details", pd.Series(dtype=str))
-        non_empty_details = details_series[details_series.astype(str).str.strip() != ""]
-        empty_details_count = len(details_series) - len(non_empty_details)
-        top3 = non_empty_details.value_counts().head(3)
-        max_count = int(top3.iloc[0]) if not top3.empty else 0
-
-        bars_html = ""
-        for idx, (value, cnt) in enumerate(top3.items()):
-            width_pct = (cnt / max_count * 100) if max_count else 0
-            # الشريط الأول #9354FF، الباقي (الثاني/الثالث) #C4A6FF — حسب المواصفة.
-            fill_class = "maz-mini-bar-fill" if idx == 0 else "maz-mini-bar-fill-secondary"
-            bars_html += (
-                f'<div class="maz-mini-bar-row">'
-                f'<span class="maz-mini-bar-label" title="{value}">{value}</span>'
-                f'<div class="maz-mini-bar-track"><div class="{fill_class}" style="width:{width_pct:.0f}%;"></div></div>'
-                f'<span style="font-size:0.76rem;color:var(--text-secondary);">{cnt}</span>'
-                f"</div>"
+        # ==== أكثر شركة ====
+        with col1:
+            company, count, pct = _top_value_insight(filtered_df.get("company", pd.Series(dtype=str)))
+            meta = (
+                f'{t("inbound_insight_call_count", lang).format(count=count)} · {t("inbound_insight_of_total", lang).format(pct=f"{pct:.0f}")}'
+                if company else ""
             )
-        no_reason_line = (
-            f'<div class="maz-insight-meta">{t("inbound_insight_no_reason", lang).format(count=empty_details_count)}</div>'
-            if empty_details_count else ""
-        )
-        top_value_display = top3.index[0] if not top3.empty else "—"
-        st.markdown(
-            f'<div class="maz-insight-card">'
-            f'<div class="maz-insight-icon-tile maz-tile-reason"><span class="material-symbols-outlined">forum</span></div>'
-            f'<div class="maz-insight-label">{t("inbound_insight_top_reason", lang)}</div>'
-            f'<div class="maz-insight-value" style="font-size:16px;">{top_value_display}</div>'
-            f"{bars_html}{no_reason_line}"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
+            st.markdown(
+                f'<div class="maz-insight-card">'
+                f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">business</span></div>'
+                f'<div class="maz-insight-label">{t("inbound_insight_top_company", lang)}</div>'
+                f'<div class="maz-insight-value">{company or "—"}</div>'
+                f'<div class="maz-insight-meta">{meta}</div>'
+                f"</div>",
+                unsafe_allow_html=True,
+            )
 
-    # ==== أكثر رقم اتصل ====
-    with col3:
-        number_series = filtered_df.get("Number", pd.Series(dtype=str))
-        number, count, _ = _top_value_insight(number_series)
-        common_reason = ""
-        if number:
-            rows_for_number = filtered_df[filtered_df["Number"] == number]
-            common_reason, _, _ = _top_value_insight(rows_for_number.get("Details", pd.Series(dtype=str)))
-        display_number = format_phone_display(number) if number else "—"
-        meta_reason = common_reason if common_reason else t("inbound_insight_empty", lang)
-        count_pill = f'<span class="maz-insight-count-pill">×{count}</span>' if count else ""
-        st.markdown(
-            f'<div class="maz-insight-card">'
-            f'<div class="maz-insight-icon-tile maz-tile-number"><span class="material-symbols-outlined">call</span></div>'
-            f'<div class="maz-insight-label">{t("inbound_insight_top_number", lang)}</div>'
-            f'<div class="maz-insight-value" dir="ltr" style="font-size:18px;">{display_number}</div>'
-            f'<div class="maz-insight-meta">{count_pill}{t("inbound_insight_calls_reason", lang).format(reason=meta_reason)}</div>'
-            f"</div>",
-            unsafe_allow_html=True,
-        )
+        # ==== أكثر سبب اتصال (Details) ====
+        with col2:
+            details_series = filtered_df.get("Details", pd.Series(dtype=str))
+            non_empty_details = details_series[details_series.astype(str).str.strip() != ""]
+            empty_details_count = len(details_series) - len(non_empty_details)
+            top3 = non_empty_details.value_counts().head(3)
+
+            bars_html = ""
+            for value, cnt in top3.items():
+                pct_of_total = (cnt / len(non_empty_details) * 100) if len(non_empty_details) else 0
+                bars_html += (
+                    f'<div class="maz-reason-row">'
+                    f'<div class="maz-reason-label-row">'
+                    f'<span title="{value}">{str(value).strip().capitalize()}</span><span>{cnt}</span>'
+                    f'</div>'
+                    f'<div class="maz-reason-track"><div class="maz-reason-fill" style="width:{pct_of_total:.0f}%;"></div></div>'
+                    f"</div>"
+                )
+            no_reason_line = (
+                f'<div class="maz-reason-empty-line">{t("inbound_insight_no_reason", lang).format(count=empty_details_count)}</div>'
+                if empty_details_count else ""
+            )
+            top_value_display = str(top3.index[0]).strip().capitalize() if not top3.empty else "—"
+            st.markdown(
+                f'<div class="maz-insight-card">'
+                f'<div class="maz-insight-icon-tile maz-tile-reason"><span class="material-symbols-outlined">forum</span></div>'
+                f'<div class="maz-insight-label">{t("inbound_insight_top_reason", lang)}</div>'
+                f'<div class="maz-insight-value">{top_value_display}</div>'
+                f"{bars_html}{no_reason_line}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+        # ==== أكثر رقم اتصل ====
+        with col3:
+            number_series = filtered_df.get("Number", pd.Series(dtype=str))
+            number, count, _ = _top_value_insight(number_series)
+            display_number = format_phone_display(number) if number else "—"
+            meta = t("inbound_insight_called_times", lang).format(count=count) if number else ""
+            st.markdown(
+                f'<div class="maz-insight-card">'
+                f'<div class="maz-insight-icon-tile maz-tile-number"><span class="material-symbols-outlined">call</span></div>'
+                f'<div class="maz-insight-label">{t("inbound_insight_top_number", lang)}</div>'
+                f'<div class="maz-insight-value" dir="ltr">{display_number}</div>'
+                f'<div class="maz-insight-meta">{meta}</div>'
+                f"</div>",
+                unsafe_allow_html=True,
+            )
 
 
 _INBOUND_STEPS = ["upload", "process", "results"]
@@ -125,9 +122,9 @@ def inbound_call_page() -> None:
 
     header_box = st.empty()
     with header_box.container():
-        render_page_header(
-            t("inbound_call_title", lang), subtitle, lang, eyebrow=t("eyebrow_inbound", lang),
-        )
+        # بدون eyebrow هنا عمدًا: eyebrow "ان باوند كول" + عنوان "ان باوند كول" يكرر نفس
+        # النص مرتين بالهيدر الواحد — العنوان وحده كافٍ بحالة الرفع (قبل توفر النتائج).
+        render_page_header(t("inbound_call_title", lang), subtitle, lang)
 
     step_box = st.empty()
 

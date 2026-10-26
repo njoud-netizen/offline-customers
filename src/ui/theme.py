@@ -551,12 +551,17 @@ def inject_theme(lang: str) -> None:
         }}
 
         /* ==== بطاقات الأبرز (Insight Cards) ==== */
+        div[class*="st-key-maz_card_insights_row"] {{ margin-bottom: 24px; }}
+        div[class*="st-key-maz_card_insights_row"] [data-testid="stHorizontalBlock"] {{ align-items: stretch; }}
+        div[class*="st-key-maz_card_insights_row"] [data-testid="stColumn"] > div {{ height: 100%; }}
         .maz-insight-card {{
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 16px;
             padding: 16px 18px;
             min-height: 150px;
+            height: 100%;
+            box-sizing: border-box;
         }}
         .maz-insight-icon-tile {{
             width: 36px;
@@ -575,23 +580,37 @@ def inject_theme(lang: str) -> None:
         .maz-insight-icon-tile.maz-tile-number {{ background: {INSIGHT_TILE_NUMBER_BG}; }}
         .maz-insight-icon-tile.maz-tile-number .material-symbols-outlined {{ color: {INSIGHT_ICON_NUMBER}; }}
         .maz-insight-label {{ color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 4px; }}
-        .maz-insight-value {{ color: var(--text-primary); font-weight: 800; font-size: 22px; line-height: 1.3; }}
-        .maz-insight-meta {{ color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; }}
-        .maz-insight-count-pill {{
-            display: inline-block;
-            background: {INSIGHT_COUNT_PILL_BG};
-            color: {INSIGHT_COUNT_PILL_TEXT};
-            font-size: 0.76rem;
+        .maz-insight-value {{
+            color: #17131F;
             font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 999px;
-            margin-inline-end: 6px;
+            font-size: 28px;
+            line-height: 1.3;
+            font-family: 'IBM Plex Sans Arabic', sans-serif;
         }}
-        .maz-mini-bar-row {{ display: flex; align-items: center; gap: 8px; margin-top: 6px; }}
-        .maz-mini-bar-label {{ font-size: 0.76rem; color: var(--text-secondary); min-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-        .maz-mini-bar-track {{ flex: 1; height: 6px; border-radius: 999px; background: {PURPLE_TINT}; overflow: hidden; }}
-        .maz-mini-bar-fill {{ height: 100%; border-radius: 999px; background: {MAZNEXA_PURPLE}; }}
-        .maz-mini-bar-fill-secondary {{ height: 100%; border-radius: 999px; background: {PURPLE_LIGHT}; }}
+        .maz-insight-value[dir="ltr"] {{
+            unicode-bidi: isolate;
+            text-align: right;
+            font-family: 'IBM Plex Sans Arabic', sans-serif;
+        }}
+        .maz-insight-meta {{ color: {TEXT_MUTED}; font-size: 14px; margin-top: 4px; }}
+        .maz-reason-row {{ margin-top: 12px; }}
+        .maz-reason-label-row {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }}
+        .maz-reason-track {{ width: 100%; height: 6px; border-radius: 999px; background: #F1EBFF; overflow: hidden; }}
+        .maz-reason-fill {{ height: 100%; border-radius: 999px; background: {MAZNEXA_PURPLE}; }}
+        .maz-reason-empty-line {{
+            color: {TEXT_MUTED};
+            font-size: 13px;
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px solid {STEP_CARD_BORDER};
+        }}
 
         /* ==== نقطة الحالة بشارة "تمت الخدمة" ==== */
         .maz-status-dot {{
@@ -661,6 +680,16 @@ def inject_theme(lang: str) -> None:
         }}
 
         /* ==== الجدول المخصص (Inbound Call) ==== */
+        /* ==== شريط فلاتر جدول Inbound Call — صف واحد موزّع، نفس الارتفاع، عناوين {TEXT_MUTED} ==== */
+        div[class*="st-key-maz_card_inbound_filters"] [data-testid="stHorizontalBlock"] {{
+            align-items: flex-end;
+            gap: 14px;
+        }}
+        div[class*="st-key-maz_card_inbound_filters"] [data-testid="stWidgetLabel"] p,
+        div[class*="st-key-maz_card_inbound_filters"] [data-testid="stWidgetLabel"] {{
+            color: {TEXT_MUTED} !important;
+        }}
+
         .maz-table-card, div[class*="st-key-maz_table_card_"] {{
             background: var(--surface);
             border: 1px solid var(--border);
