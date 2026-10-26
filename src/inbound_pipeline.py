@@ -9,6 +9,7 @@ from .config import resolve_path
 from .maqsam_import import extract_inbound_records, load_maqsam_export
 from .report import write_inbound_report
 from .rule_extraction import extract_call_fields_rule_based
+from .translate_helper import translate_to_arabic
 
 _DETAILS_OTHER = "Other"
 
@@ -102,12 +103,15 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
         number_value = r.customer_phone.normalized or r.customer_phone.raw
 
         remark = ""
+        arabic_summary = ""
         if review_reasons:
             remark = "يحتاج مراجعة يدوية: " + " | ".join(review_reasons)
             if r.call_summary:
-                # نص ملخص المكالمة نفسه داخل Remark مباشرة — حتى ما تحتاج ترجع لماقسام وتسمع
-                # المكالمة بنفسك عشان تعرف وش قال العميل.
-                remark += f" || ملخص المكالمة: {r.call_summary[:300]}"
+                # ملخص المكالمة نفسه مترجم للعربي — حتى ما تحتاج ترجع لماقسام وتسمع المكالمة
+                # بنفسك عشان تعرف وش قال العميل. ترجمة مجانية (best-effort)؛ لو فشلت الترجمة
+                # يرجع النص الإنجليزي الأصلي بدل ما يوقف المعالجة.
+                arabic_summary = translate_to_arabic(r.call_summary[:450])
+                remark += f" || ملخص المكالمة: {arabic_summary[:400]}"
 
         row = {
             "Name": name,
@@ -135,7 +139,7 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
                 "call_id": r.call_id,
                 "number": number_value,
                 "reason": " | ".join(review_reasons),
-                "call_summary": r.call_summary[:200],
+                "call_summary": arabic_summary[:400] if arabic_summary else r.call_summary[:200],
             })
 
     summary = {
