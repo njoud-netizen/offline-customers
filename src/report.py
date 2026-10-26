@@ -41,3 +41,15 @@ def write_reports(output_dir: str, offline_rows: list[dict], excluded_rows: list
     paths["summary"] = str(summary_path)
 
     return paths
+
+
+def write_inbound_report(output_dir: str, rows: list[dict], columns: list[str]) -> str:
+    """ملف صفحة Inbound Call: نفس أعمدة google_sheets.columns بالضبط وبنفس الترتيب — جاهز للصق
+    المباشر بشيت المزروع، بدون أي عمود زائد."""
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    path = out / f"inbound_calls_{stamp}.xlsx"
+    pd.DataFrame(rows, columns=columns).to_excel(path, index=False)
+    return str(path)

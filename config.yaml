@@ -71,16 +71,272 @@ exclusion_details:
 
 # قاموس مطابقة البراند: يربط بادئة كود العميل/المتجر بملف الفواتير مع القيم المستخدمة
 # بعمود company بشيت المزروع. أضف براندات جديدة هنا فقط عند ظهورها بملفات مستقبلية.
+#
+# maqsam_line_aliases: أسماء خط الاتصال كما تظهر بعمودي Caller/Callee بتصدير Maqsam (صفحة
+# Inbound Call). القيم المعلّمة "مؤكد" شوهدت فعليًا بتصدير حقيقي؛ البقية "افتراضي غير مؤكد"
+# (نفس اسم company كما هو) وتحتاج تصحيح إذا ظهرت بتصدير حقيقي باسم مختلف. لا تُستخدم هذه
+# القائمة بأي مكان بمسار مطابقة الفواتير الحالي (invoice_codes/resolve_canonical_brand_from_show_room) —
+# حقل مستقل تمامًا لصفحة Inbound Call فقط.
 brand_dictionary:
   BedQuarterKSA:
     invoice_codes: ["BQ"]
     sheet_aliases: ["BedQuarterKSA", "BQ", "Bed Quarter", "Bed Quarter KSA"]
+    maqsam_line_aliases: ["BedQuarter", "BedQuarterKSA"]  # مؤكد: "BedQuarter" بلا دولة يُفترض KSA دومًا
   BedHouse:
     invoice_codes: ["BH"]
     sheet_aliases: ["Bed House", "BH", "BedHouse"]
+    maqsam_line_aliases: ["BedHouse", "Bed House"]  # مؤكد
   LaZBoy:
     invoice_codes: ["LAZ", "LZ"]
     sheet_aliases: ["LA-Z-BOY", "La-Z-Boy", "Laz Boy", "LAZBOY"]
+    maqsam_line_aliases: ["LazyBoy", "LA-Z-BOY"]  # مؤكد
+  NOLTE:
+    invoice_codes: []
+    sheet_aliases: ["NOLTE"]
+    maqsam_line_aliases: ["NOLTE"]  # مؤكد
+  Mazwood:
+    invoice_codes: []
+    sheet_aliases: ["MAZWOOD"]
+    maqsam_line_aliases: ["Mazwood", "MAZWOOD"]  # مؤكد
+  Oppein:
+    invoice_codes: []
+    sheet_aliases: ["OPPEIN"]
+    maqsam_line_aliases: ["OPPEIN"]  # مؤكد
+  MazNexa:
+    invoice_codes: []
+    sheet_aliases: ["MAZ NEXA"]
+    maqsam_line_aliases: ["MAZ NEXA"]  # افتراضي غير مؤكد
+  Elba:
+    invoice_codes: []
+    sheet_aliases: ["Elba"]
+    maqsam_line_aliases: ["Elba"]  # افتراضي غير مؤكد
+  Bedzzzz:
+    invoice_codes: []
+    sheet_aliases: ["Bedzzzz"]
+    maqsam_line_aliases: ["Bedzzzz"]  # افتراضي غير مؤكد
+  Sidrah:
+    invoice_codes: []
+    sheet_aliases: ["Sidrah"]
+    maqsam_line_aliases: ["Sidrah"]  # افتراضي غير مؤكد
+  Amazon:
+    invoice_codes: []
+    sheet_aliases: ["Amazon"]
+    maqsam_line_aliases: ["Amazon"]  # افتراضي غير مؤكد
+  BedQuarterUAE:
+    invoice_codes: []
+    sheet_aliases: ["BedQuarterUAE"]
+    maqsam_line_aliases: ["BedQuarterUAE"]  # افتراضي غير مؤكد
+  Extra:
+    invoice_codes: []
+    sheet_aliases: ["Extra"]
+    maqsam_line_aliases: ["Extra"]  # افتراضي غير مؤكد
+  BedQuarterBAH:
+    invoice_codes: []
+    sheet_aliases: ["BedQuarter BAH"]
+    maqsam_line_aliases: ["BedQuarter BAH"]  # افتراضي غير مؤكد
+  HomeCenter:
+    invoice_codes: []
+    sheet_aliases: ["HomeCenter"]
+    maqsam_line_aliases: ["HomeCenter"]  # افتراضي غير مؤكد
+  Belkin:
+    invoice_codes: []
+    sheet_aliases: ["belkin"]
+    maqsam_line_aliases: ["belkin"]  # افتراضي غير مؤكد
+  Baytonia:
+    invoice_codes: []
+    sheet_aliases: ["Baytonia"]
+    maqsam_line_aliases: ["Baytonia"]  # افتراضي غير مؤكد
+  Noon:
+    invoice_codes: []
+    sheet_aliases: ["Noon"]
+    maqsam_line_aliases: ["Noon"]  # افتراضي غير مؤكد
+  Trendyol:
+    invoice_codes: []
+    sheet_aliases: ["Trendyol"]
+    maqsam_line_aliases: ["Trendyol"]  # افتراضي غير مؤكد
+
+# إعدادات صفحة "Inbound Call" (استيراد تصدير Maqsam وتعبية شيت المزروع تلقائيًا من Call Summary).
+call_import:
+  # "rules": استخراج مجاني بمطابقة كلمات مفتاحية (src/rule_extraction.py) — أقل دقة لكن بدون أي تكلفة،
+  #          وهو الوضع الافتراضي حاليًا (الحساب الحالي بلا رصيد Anthropic API).
+  # "claude": استخراج أدق عبر Claude API (src/call_extraction.py) — يتطلب ANTHROPIC_API_KEY ورصيد فعلي
+  #           بحساب Anthropic. بدّل لهذا الوضع فقط بعد إضافة رصيد حقيقي بـ console.anthropic.com.
+  extraction_mode: "rules"
+  anthropic_model: "claude-haiku-4-5-20251001"
+  batch_size: 20
+  # القيمة الكاملة الحالية لعمود Details بشيت المزروع (مجمّعة من كل تبويبات الوكيلات فعليًا) —
+  # تُستخدم كقائمة الخيارات المسموحة عند تصنيف نص Call Summary. حدّثها دوريًا إذا ظهرت قيم جديدة
+  # بالشيت الحقيقي لم تكن موجودة هنا وقت الإنشاء.
+  details_catalog:
+    - "Adjustable Beds"
+    - "Admission Information"
+    - "Advertisement"
+    - "Ahsa Branche"
+    - "Air Conditione"
+    - "Air Conditioner"
+    - "ALF ITALIA"
+    - "Alf Italia"
+    - "Bed linen"
+    - "Beds"
+    - "BH Competition"
+    - "Branch Dammam"
+    - "Branches"
+    - "Catalog"
+    - "Closet Price"
+    - "Closet price"
+    - "Clothes Dryer"
+    - "Competition"
+    - "Cozzia Massage Chair"
+    - "Cozzia Massage Chair - Quantum - CZ-800"
+    - "Cozzia Massage Chair - Quantum - CZ-801"
+    - "Cozzia Massage Chair - Quantum - CZ-802"
+    - "Cozzia Massage Chair - Quantum - CZ-803"
+    - "Cozzia Massage Chair - Quantum - CZ-804"
+    - "Cozzia Massage Chair - Quantum - CZ-805"
+    - "Cozzia Massage Chair - Quantum - CZ-806"
+    - "Cozzia Massage Chair - Quantum - CZ-807"
+    - "Cozzia Massage Chair - Quantum - CZ-808"
+    - "Cozzia Massage Chair - Quantum - CZ-809"
+    - "Cozzia Massage Chair - Quantum - CZ-810"
+    - "Cozzia Massage Chair - Quantum - CZ-811"
+    - "Cozzia Massage Chair - Quantum - CZ-812"
+    - "Cozzia Massage Chair - Quantum - CZ-813"
+    - "Cozzia Massage Chair - Quantum - CZ-814"
+    - "Cozzia Massage Chair - Quantum - CZ-815"
+    - "Cozzia Massage Chair - Quantum - CZ-816"
+    - "Cozzia Massage Chair - Quantum - CZ-817"
+    - "Cozzia Massage Chair - Quantum - CZ-818"
+    - "Cozzia Massage Chair - Quantum - CZ-819"
+    - "Cozzia Massage Chair - Quantum - CZ-820"
+    - "Cozzia Massage Chair - Quantum - CZ-821"
+    - "Cozzia Massage Chair - Quantum - CZ-822"
+    - "delay in delivery"
+    - "Delay in maintenance"
+    - "Delay in receiving the kitchen"
+    - "Delivery Time"
+    - "Dishwasher"
+    - "Dishwasher Maintenanc"
+    - "door"
+    - "Dryer Maintenance"
+    - "dunlopillo empire mattress"
+    - "eclipse"
+    - "Eclipse Grand Royal Mattress"
+    - "Eco King Dam 10"
+    - "Electric Oven"
+    - "Electrical connection"
+    - "Employee"
+    - "engagement"
+    - "Excellence"
+    - "Eye Massager Ogawa"
+    - "f"
+    - "Fragrances"
+    - "Free consultation"
+    - "Free Consultation"
+    - "Getha Mattress"
+    - "Hotel Mattresses"
+    - "Hotel Mattresses price"
+    - "Ice Maker"
+    - "installment"
+    - "Installments"
+    - "Jeddah Branche"
+    - "Jizan Branche"
+    - "job"
+    - "Job Email"
+    - "Khamis Mushait Branche"
+    - "Khobar Branche"
+    - "Kitchen material"
+    - "Kitchen Price"
+    - "Kuka-Manual-Recliner"
+    - "Labad Bayoumi"
+    - "Magic light"
+    - "Maintenance"
+    - "Manual recliners"
+    - "Manual Recliners"
+    - "Manual Recliners Ascot"
+    - "Manual recliners brooks"
+    - "Manual recliners Dreamtime"
+    - "Manual Recliners Dreamtime"
+    - "Manual recliners Gibson"
+    - "Manual recliners Maverick"
+    - "Manual recliners new"
+    - "Manual Recliners Nora"
+    - "Manual recliners price"
+    - "Manual Recliners Randell"
+    - "Manual Recliners spectator"
+    - "Manual recliners Stratos"
+    - "Manual ReclinersRandell"
+    - "Massage Chair Zero Gravity"
+    - "Massage Chairs"
+    - "Massage Chairs Cosmo x Ogawa massage chair"
+    - "Massage O.M.G."
+    - "Master Drive Plus Ogawa Massage Chair"
+    - "Master Drive Plus Share"
+    - "Mattress Kluft"
+    - "Mattresses Eclipse"
+    - "Mattresses Getha Nature First"
+    - "Mecca Branche"
+    - "Medical  Mattresses"
+    - "Medical Mattresses"
+    - "Medical Mattresses price"
+    - "Medina Branche"
+    - "Millennium Pillow with SmartCool"
+    - "Mirage"
+    - "Mirage Plus"
+    - "NEO Power Recliner"
+    - "New electric recliner chair"
+    - "Night Star Mattress"
+    - "Nolte competition"
+    - "Nolte Competition"
+    - "Nolti Competition"
+    - "Offers"
+    - "office chair"
+    - "Ogawa Master Drive Plus 3.0 Massage Chair"
+    - "OGAWA Sonic-X Massage Chair"
+    - "ogawa-sonic-x-massage-chair"
+    - "order"
+    - "oven"
+    - "Oven Maintenance"
+    - "P"
+    - "Payment"
+    - "Pillow Gita Air"
+    - "Pillows"
+    - "Pinnacle"
+    - "Power Recliners"
+    - "Prayer Matt"
+    - "Product Marketing"
+    - "Protectors"
+    - "Qassim Branche"
+    - "Qatif Branche"
+    - "Quilts"
+    - "Recliner Chair"
+    - "Recliner Spectator"
+    - "Refrigerator"
+    - "Refrigerator Maintenance"
+    - "Riyadh Branche"
+    - "service"
+    - "Sleep mask"
+    - "Smart Galaxy"
+    - "Smart Jazz Chair"
+    - "Sofa"
+    - "Spring Air Back Supporter"
+    - "Spring Air Back Supporter Comfort"
+    - "support Email"
+    - "Support Email"
+    - "Tabuk Branche"
+    - "Taif Branche"
+    - "Tempur"
+    - "Tempur Firm"
+    - "Tempur form"
+    - "Tempur Ombracio Pillow"
+    - "Tempur Pillow"
+    - "Toppers"
+    - "vacuum cleaner"
+    - "Washing machine"
+    - "Washing Machine Maintenance"
+    - "Water cooler"
+    - "Water Cooler Maintenance"
+    - "website"
+    - "Working Hours"
 
 phone:
   # الصيغة النهائية الصحيحة لرقم جوال سعودي بعد التطبيع: 966 + 5 + 8 أرقام = 12 رقم إجمالًا

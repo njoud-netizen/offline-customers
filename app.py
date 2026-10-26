@@ -11,6 +11,7 @@ import streamlit as st
 from src.translations import t
 from src.ui import theme
 from src.ui.dashboard_page import dashboard_page
+from src.ui.inbound_call_page import inbound_call_page
 from src.ui.sidebar import render_sidebar_chrome
 from src.ui.upload_page import upload_page
 
@@ -34,6 +35,7 @@ pg = st.navigation(
     [
         st.Page(dashboard_page, title=t("dashboard_title", lang), icon="📊", default=True),
         st.Page(upload_page, title=t("upload_title", lang), icon="📤"),
+        st.Page(inbound_call_page, title=t("inbound_call_title", lang), icon="📞"),
     ]
 )
 pg.run()

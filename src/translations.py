@@ -180,6 +180,41 @@ TRANSLATIONS = {
     "exclusion_chart_axis_reason": {"ar": "سبب الاستبعاد", "en": "Exclusion Reason"},
     "exclusion_table_col_reason": {"ar": "سبب الاستبعاد", "en": "Exclusion Reason"},
     "exclusion_table_col_count": {"ar": "العدد", "en": "Count"},
+
+    # ==== صفحة Inbound Call (باوند كول) ====
+    "inbound_call_title": {"ar": "باوند كول (Inbound Call)", "en": "Inbound Call"},
+    "inbound_call_subtitle": {
+        "ar": "ارفع تصدير المكالمات اليومي من Maqsam لاستخراج اسم العميل والاستفسار تلقائيًا بالذكاء الاصطناعي",
+        "en": "Upload the daily Maqsam call export to automatically extract customer name and inquiry with AI",
+    },
+    "inbound_uploader_label": {"ar": "ارفع ملف تصدير Maqsam (Call Exports)", "en": "Upload Maqsam export file (Call Exports)"},
+    "inbound_upload_hint": {
+        "ar": "ارفع تصدير يوم واحد فقط (Excel أو CSV) — تُعالَج المكالمات الواردة (Inbound) فقط حاليًا، "
+              "وتبدأ المعالجة تلقائيًا فور الرفع.",
+        "en": "Upload a single day's export (Excel or CSV) — only Inbound calls are processed for now, "
+              "processing starts automatically on upload.",
+    },
+    "inbound_spinner_processing": {
+        "ar": "جاري قراءة الملف واستخراج تفاصيل المكالمات بالذكاء الاصطناعي...",
+        "en": "Reading the file and extracting call details with AI...",
+    },
+    "inbound_error_processing": {"ar": "❌ حدث خطأ أثناء معالجة ملف المكالمات:", "en": "❌ An error occurred while processing the calls file:"},
+    "inbound_success_processed": {"ar": "✅ تمت المعالجة بنجاح", "en": "✅ Processed successfully"},
+    "inbound_warning_no_rows": {"ar": "لا توجد أي مكالمات Inbound بهذا الملف.", "en": "No Inbound calls found in this file."},
+
+    "inbound_metric_total": {"ar": "مكالمات Inbound", "en": "Inbound calls"},
+    "inbound_metric_with_details": {"ar": "صفوف فيها تفاصيل مستخرجة", "en": "Rows with extracted details"},
+    "inbound_metric_review": {"ar": "تحتاج مراجعة يدوية", "en": "Need manual review"},
+    "inbound_metric_brands": {"ar": "براندات تم حلّها", "en": "Brands resolved"},
+
+    "inbound_subheader_results": {"ar": "نتائج الاستخراج", "en": "Extraction Results"},
+    "inbound_expander_review": {"ar": "⚠️ صفوف تحتاج مراجعة يدوية", "en": "⚠️ Rows needing manual review"},
+    "inbound_review_col_id": {"ar": "رقم المكالمة", "en": "Call ID"},
+    "inbound_review_col_number": {"ar": "الرقم", "en": "Number"},
+    "inbound_review_col_reason": {"ar": "سبب المراجعة", "en": "Review Reason"},
+    "inbound_review_col_summary": {"ar": "ملخص المكالمة (مختصر)", "en": "Call Summary (excerpt)"},
+
+    "inbound_download_label": {"ar": "📥 تحميل ملف المكالمات (جاهز للصق بشيت المزروع)", "en": "📥 Download calls file (ready to paste into Almazro sheet)"},
 }
 
 

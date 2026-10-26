@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 .env
 streamlit_log.txt
+.streamlit/secrets.toml
