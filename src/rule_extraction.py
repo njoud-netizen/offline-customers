@@ -60,6 +60,27 @@ def _tokenize(text: str) -> set:
     return {_singularize(w.lower()) for w in _WORD_RE.findall(text)}
 
 
+# قاعدة عمل خاصة (طلب المستخدم): إذا المتصل هو من يعرض خدمات على الشركة (تسويق/إدارة سوشيال
+# ميديا/إعلانات...) وليس عميل يسأل عن منتج، يُصنَّف "Advertisement" مباشرة — أولوية فوق أي
+# تصنيف عام آخر، حتى لو ما وُجدت كلمة "Advertisement" حرفيًا بالنص.
+_VENDOR_PITCH_SIGNALS = [
+    "marketing management", "social media management", "offer marketing",
+    "offering marketing", "marketing services", "advertising services",
+    "advertising agency", "marketing agency", "digital marketing",
+    "offer advertising", "offering advertising", "offer to advertise",
+    "offering to advertise", "wants to offer", "offered to provide services",
+    "proposed a partnership", "proposed a collaboration", "collaboration proposal",
+    "partnership proposal", "offer their services", "offering their services",
+    "offer our services", "offering our services", "seo services",
+    "promote your", "promotion services", "sponsorship", "cold call",
+]
+
+
+def is_vendor_service_pitch(summary: str) -> bool:
+    text_lower = summary.lower()
+    return any(signal in text_lower for signal in _VENDOR_PITCH_SIGNALS)
+
+
 def classify_details(summary: str, details_catalog: list[str]) -> str:
     """
     يختار أقرب قيمة من details_catalog: تطابق تام للعبارة كـ substring يُفضَّل دومًا؛ وإلا يُشترط
@@ -68,6 +89,9 @@ def classify_details(summary: str, details_catalog: list[str]) -> str:
     """
     if not summary:
         return ""
+
+    if is_vendor_service_pitch(summary) and "Advertisement" in details_catalog:
+        return "Advertisement"
 
     summary_lower = summary.lower()
     summary_words = _tokenize(summary)
