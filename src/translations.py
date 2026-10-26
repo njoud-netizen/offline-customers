@@ -275,7 +275,7 @@ TRANSLATIONS = {
     "inbound_step_results_label": {"ar": "النتائج", "en": "Results"},
 
     "inbound_insights_title": {"ar": "أبرز المؤشرات", "en": "Top Insights"},
-    "inbound_insight_top_company": {"ar": "أكثر شركة", "en": "Top company"},
+    "inbound_insight_top_company": {"ar": "المكالمات حسب الشركة", "en": "Calls by Company"},
     "inbound_insight_top_reason": {"ar": "أكثر سبب اتصال", "en": "Top contact reason"},
     "inbound_insight_top_number": {"ar": "أكثر رقم اتصل", "en": "Most frequent number"},
     "inbound_insight_no_reason": {"ar": "{count} مكالمة بدون سبب مسجَّل", "en": "{count} calls with no recorded reason"},

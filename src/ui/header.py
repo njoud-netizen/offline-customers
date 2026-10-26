@@ -6,6 +6,8 @@ import streamlit as st
 
 from src.translations import t
 
+from .inbound_table import COMPANY_ALL_VALUE, HEADER_COMPANY_KEY, ensure_company_filter_defaults, sync_company_from_header
+
 
 def render_page_header(
     title: str,
@@ -34,9 +36,6 @@ def render_page_header(
                     st.rerun()
 
 
-_COMPANY_ALL = ""  # نفس قيمة COMPANY_ALL_VALUE بـ inbound_table.py (داخلية، غير مترجمة)
-
-
 def render_results_header(
     eyebrow: str,
     title: str,
@@ -55,6 +54,7 @@ def render_results_header(
     قيمتي البحث/الشركة (من نفس الاستدعاء) لحساب بيانات CSV *قبل* رسم زر التحميل — يتفادى
     مشكلة الدائرية (الزر يحتاج القيم اللي ترجعها هذي الدالة نفسها). يستبدل render_page_header
     بصريًا لحالة النتائج فقط (يُرسم داخل نفس st.empty() placeholder)."""
+    ensure_company_filter_defaults()
     with st.container(key="maz_results_header"):
         col_text, col_action = st.columns([1.6, 2])
         with col_text:
@@ -71,12 +71,13 @@ def render_results_header(
                     label_visibility="collapsed",
                 )
             with col_company:
-                company_select_options = [_COMPANY_ALL] + company_options
+                company_select_options = [COMPANY_ALL_VALUE] + company_options
                 selected_company = st.selectbox(
                     t("inbound_header_company_label", lang),
                     options=company_select_options,
-                    format_func=lambda v: t("inbound_filter_all_companies", lang) if v == _COMPANY_ALL else v,
-                    key="inbound_header_company_filter",
+                    format_func=lambda v: t("inbound_filter_all_companies", lang) if v == COMPANY_ALL_VALUE else v,
+                    key=HEADER_COMPANY_KEY,
+                    on_change=sync_company_from_header,
                     label_visibility="collapsed",
                 )
             with col_csv:

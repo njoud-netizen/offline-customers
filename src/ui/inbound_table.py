@@ -50,6 +50,30 @@ def normalize_phone(raw: str) -> str:
 
 COMPANY_ALL_VALUE = ""  # قيمة داخلية ثابتة (غير مترجمة) لخيار "كل الشركات"
 
+# فلتر الشركة له ودجتان منفصلتان (الهيدر + بطاقة "المكالمات حسب الشركة") تتزامنان ببعض عبر
+# callbacks — Streamlit يمنع استخدام نفس الـkey لودجتين، فكل واحدة تاخذ key مستقل وتكتب
+# بقيمتها الجديدة بمفتاح الثانية فور التغيير (on_change يشتغل قبل إعادة تشغيل السكربت من
+# الأول، فتوصل القيمة المتزامنة قبل ما تُرسم أي ودجت بنفس التشغيلة التالية).
+HEADER_COMPANY_KEY = "inbound_header_company_filter"
+CARD_COMPANY_KEY = "inbound_insight_company_select"
+
+
+def ensure_company_filter_defaults() -> None:
+    """تهيئة أولى لمفتاحي فلتر الشركة (مرة وحدة، أول تشغيلة) — بدون هذا لن تتفق الودجتان
+    على نفس القيمة الافتراضية ("كل الشركات") عند أول ظهور للصفحة."""
+    if HEADER_COMPANY_KEY not in st.session_state:
+        st.session_state[HEADER_COMPANY_KEY] = COMPANY_ALL_VALUE
+    if CARD_COMPANY_KEY not in st.session_state:
+        st.session_state[CARD_COMPANY_KEY] = COMPANY_ALL_VALUE
+
+
+def sync_company_from_header() -> None:
+    st.session_state[CARD_COMPANY_KEY] = st.session_state[HEADER_COMPANY_KEY]
+
+
+def sync_company_from_card() -> None:
+    st.session_state[HEADER_COMPANY_KEY] = st.session_state[CARD_COMPANY_KEY]
+
 
 def _call_type_html(value: str, lang: str) -> str:
     raw = (value or "").strip()

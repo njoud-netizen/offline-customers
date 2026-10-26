@@ -586,15 +586,19 @@ def inject_theme(lang: str) -> None:
         /* ==== بطاقات الأبرز (Insight Cards) ==== */
         div[class*="st-key-maz_insights_row_wrap"] {{ margin-bottom: 20px; }}
         div[class*="st-key-maz_insights_row_wrap"] [data-testid="stHorizontalBlock"] {{ align-items: stretch !important; }}
-        /* سلسلة height:100% كاملة من stColumn لين .maz-insight-card — تحقّقنا من بنية الـDOM
-        الفعلية بالمتصفح (stColumn > stVerticalBlock > stElementContainer > stMarkdown >
-        stMarkdownContainer > .maz-insight-card): أي حلقة بالسلسلة بدون height صريح (auto)
-        تكسر توريث height:100% للي تحتها، حتى لو align-items:stretch شغّال فعليًا بالأعلى. */
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > div,
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stVerticalBlock"],
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stElementContainer"],
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stMarkdown"],
-        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stMarkdownContainer"] {{
+        /* سلسلة height:100% من stColumn لين محتوى كل بطاقة — بروابط مباشرة (>) فقط لا descendant
+        عام، حتى ما تنكسر بطاقات تحتوي ودجتات حقيقية متعددة (بطاقة فلتر الشركة: عدة
+        stElementContainer متجاورة، كل وحدة لعنصر مستقل — لو طبّقنا height:100% على كل
+        descendant بالعمق كان راح يمدد كل عنصر فرعي لحاله بدل ما يتمدد الكرت ككل فقط). */
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] {{
+            height: 100% !important;
+        }}
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] {{
+            height: 100% !important;
+        }}
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] > [data-testid="stMarkdown"],
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] > [data-testid="stMarkdown"] > [data-testid="stMarkdownContainer"],
+        div[class*="st-key-maz_insights_row_wrap"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"] > [data-testid="stVerticalBlock"] {{
             height: 100% !important;
         }}
         .maz-insight-card {{
@@ -603,10 +607,21 @@ def inject_theme(lang: str) -> None:
             border-radius: 20px;
             overflow: hidden;
             padding: 16px 18px;
-            min-height: 300px;
             height: 100% !important;
             box-sizing: border-box !important;
         }}
+        /* بطاقة "المكالمات حسب الشركة" — تحتوي ودجت st.selectbox حقيقي فنستخدم st.container(key=)
+        بدل .maz-insight-card الخام (نفس قاعدة "الأشرطة البيضاء الفاضية" الموثّقة بالملف). */
+        div[class*="st-key-maz_card_company_insight"] {{
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            padding: 16px 18px;
+            height: 100% !important;
+            box-sizing: border-box !important;
+        }}
+        div[class*="st-key-maz_card_company_insight"] [data-testid="stSelectbox"] {{ margin: 8px 0 4px 0; }}
         /* أيقونات موحّدة بالكامل (بدون تمييز لوني لكل بطاقة) — {ICON_TILE_COLOR} داخل مربع
         {ICON_TILE_BG} بزوايا 12px، حسب الطلب الصريح. */
         .maz-insight-icon-tile {{
