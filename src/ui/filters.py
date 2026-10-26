@@ -68,65 +68,63 @@ def render_filters_bar(df: pd.DataFrame, brand_dictionary: dict, lang: str) -> D
     if BRAND_EDIT_MODE_KEY not in st.session_state:
         st.session_state[BRAND_EDIT_MODE_KEY] = False
 
-    st.markdown('<div class="maz-card">', unsafe_allow_html=True)
-    st.markdown(f'<p class="maz-card-title">{t("filters_card_title", lang)}</p>', unsafe_allow_html=True)
+    with st.container(key="maz_card_dashboard_filters"):
+        st.markdown(f'<p class="maz-card-title">{t("filters_card_title", lang)}</p>', unsafe_allow_html=True)
 
-    st.markdown(f'<p class="maz-card-subtitle" style="margin-bottom:6px;">{t("quick_range_label", lang)}</p>', unsafe_allow_html=True)
-    quick_cols = st.columns(len(_QUICK_RANGE_KEYS) + 1)
-    for col, kind in zip(quick_cols, _QUICK_RANGE_KEYS):
-        with col:
-            if st.button(t(f"quick_range_{kind}", lang), key=f"quick_{kind}", use_container_width=True):
-                st.session_state[DATE_KEY] = _quick_range(kind, min_date, max_date)
+        st.markdown(f'<p class="maz-card-subtitle" style="margin-bottom:6px;">{t("quick_range_label", lang)}</p>', unsafe_allow_html=True)
+        quick_cols = st.columns(len(_QUICK_RANGE_KEYS) + 1)
+        for col, kind in zip(quick_cols, _QUICK_RANGE_KEYS):
+            with col:
+                if st.button(t(f"quick_range_{kind}", lang), key=f"quick_{kind}", use_container_width=True):
+                    st.session_state[DATE_KEY] = _quick_range(kind, min_date, max_date)
+                    st.rerun()
+
+        col_date, col_brand, col_year, col_reset = st.columns([1.5, 1.6, 0.7, 0.6])
+
+        # مهم: نتعامل مع زر "إعادة ضبط" ونُغيّر session_state هنا أولًا (بترتيب التنفيذ
+        # بالكود)، قبل إنشاء أي ودجت مربوط بنفس المفاتيح أدناه — Streamlit يمنع تعديل
+        # session_state لمفتاح ودجت بعد إنشاء ذلك الودجت بنفس التشغيلة. ترتيب التنفيذ هذا
+        # لا يغيّر مكان ظهور العمود بصريًا (يبقى بأقصى العمود كما هو معرّف بـ st.columns).
+        with col_reset:
+            st.markdown("<div style='height:1.6rem'></div>", unsafe_allow_html=True)
+            if st.button(t("filter_reset_button", lang), use_container_width=True):
+                st.session_state[DATE_KEY] = (min_date, max_date)
+                st.session_state[BRAND_KEY] = known_brands
+                st.session_state[YEAR_KEY] = all_label
+                st.session_state[BRAND_EDIT_MODE_KEY] = False
                 st.rerun()
 
-    col_date, col_brand, col_year, col_reset = st.columns([1.5, 1.6, 0.7, 0.6])
-
-    # مهم: نتعامل مع زر "إعادة ضبط" ونُغيّر session_state هنا أولًا (بترتيب التنفيذ
-    # بالكود)، قبل إنشاء أي ودجت مربوط بنفس المفاتيح أدناه — Streamlit يمنع تعديل
-    # session_state لمفتاح ودجت بعد إنشاء ذلك الودجت بنفس التشغيلة. ترتيب التنفيذ هذا
-    # لا يغيّر مكان ظهور العمود بصريًا (يبقى بأقصى العمود كما هو معرّف بـ st.columns).
-    with col_reset:
-        st.markdown("<div style='height:1.6rem'></div>", unsafe_allow_html=True)
-        if st.button(t("filter_reset_button", lang), use_container_width=True):
-            st.session_state[DATE_KEY] = (min_date, max_date)
-            st.session_state[BRAND_KEY] = known_brands
-            st.session_state[YEAR_KEY] = all_label
-            st.session_state[BRAND_EDIT_MODE_KEY] = False
-            st.rerun()
-
-    with col_date:
-        date_range_widget = st.date_input(
-            t("filter_date_range_label", lang), min_value=min_date, max_value=max_date, key=DATE_KEY,
-        )
-    with col_brand:
-        current_brands = st.session_state.get(BRAND_KEY, known_brands)
-        is_all_selected = set(current_brands) == set(known_brands)
-        # عرض مضغوط "كل الشركات" (بدون Chips فردية) فقط حين تكون كل الشركات مختارة
-        # ولم يطلب المستخدم التعديل صراحةً — أي تضييق فعلي للاختيار يعيد إظهار Chips
-        # الفردية تلقائيًا (عبر الشرط أدناه) دون أي تغيير بمنطق الفلترة نفسه.
-        if is_all_selected and not st.session_state[BRAND_EDIT_MODE_KEY]:
-            st.markdown(f'<div class="maz-compact-filter-label">{t("filter_brand_label", lang)}</div>', unsafe_allow_html=True)
-            box_col, edit_col = st.columns([2.4, 1])
-            with box_col:
-                st.markdown(
-                    f'<div class="maz-compact-filter-box">🏢 {t("filter_all_option", lang)}</div>',
-                    unsafe_allow_html=True,
-                )
-            with edit_col:
-                if st.button(t("filter_brand_edit_button", lang), key="brand_edit_btn", use_container_width=True):
-                    st.session_state[BRAND_EDIT_MODE_KEY] = True
-                    st.rerun()
-            brands_widget = known_brands
-        else:
-            brands_widget = st.multiselect(
-                t("filter_brand_label", lang), options=known_brands, key=BRAND_KEY,
+        with col_date:
+            date_range_widget = st.date_input(
+                t("filter_date_range_label", lang), min_value=min_date, max_value=max_date, key=DATE_KEY,
             )
-            st.session_state[BRAND_EDIT_MODE_KEY] = set(brands_widget) != set(known_brands)
-    with col_year:
-        year_options = [all_label] + years
-        year_widget = st.selectbox(t("filter_year_label", lang), options=year_options, key=YEAR_KEY)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        with col_brand:
+            current_brands = st.session_state.get(BRAND_KEY, known_brands)
+            is_all_selected = set(current_brands) == set(known_brands)
+            # عرض مضغوط "كل الشركات" (بدون Chips فردية) فقط حين تكون كل الشركات مختارة
+            # ولم يطلب المستخدم التعديل صراحةً — أي تضييق فعلي للاختيار يعيد إظهار Chips
+            # الفردية تلقائيًا (عبر الشرط أدناه) دون أي تغيير بمنطق الفلترة نفسه.
+            if is_all_selected and not st.session_state[BRAND_EDIT_MODE_KEY]:
+                st.markdown(f'<div class="maz-compact-filter-label">{t("filter_brand_label", lang)}</div>', unsafe_allow_html=True)
+                box_col, edit_col = st.columns([2.4, 1])
+                with box_col:
+                    st.markdown(
+                        f'<div class="maz-compact-filter-box">🏢 {t("filter_all_option", lang)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                with edit_col:
+                    if st.button(t("filter_brand_edit_button", lang), key="brand_edit_btn", use_container_width=True):
+                        st.session_state[BRAND_EDIT_MODE_KEY] = True
+                        st.rerun()
+                brands_widget = known_brands
+            else:
+                brands_widget = st.multiselect(
+                    t("filter_brand_label", lang), options=known_brands, key=BRAND_KEY,
+                )
+                st.session_state[BRAND_EDIT_MODE_KEY] = set(brands_widget) != set(known_brands)
+        with col_year:
+            year_options = [all_label] + years
+            year_widget = st.selectbox(t("filter_year_label", lang), options=year_options, key=YEAR_KEY)
 
     if isinstance(date_range_widget, tuple) and len(date_range_widget) == 2:
         start_date, end_date = date_range_widget

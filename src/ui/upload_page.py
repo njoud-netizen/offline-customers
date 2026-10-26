@@ -45,14 +45,13 @@ def _render_preview(uploaded_file, lang: str) -> None:
     finally:
         uploaded_file.seek(0)
 
-    st.markdown('<div class="maz-card">', unsafe_allow_html=True)
-    st.markdown(f'<p class="maz-card-title">{t("upload_preview_title", lang)}</p>', unsafe_allow_html=True)
-    st.markdown(
-        f'<p class="maz-card-subtitle">{t("upload_preview_row_count", lang).format(count=f"{len(full_df):,}")}</p>',
-        unsafe_allow_html=True,
-    )
-    st.dataframe(full_df.head(10), use_container_width=True, hide_index=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container(key="maz_card_upload_preview"):
+        st.markdown(f'<p class="maz-card-title">{t("upload_preview_title", lang)}</p>', unsafe_allow_html=True)
+        st.markdown(
+            f'<p class="maz-card-subtitle">{t("upload_preview_row_count", lang).format(count=f"{len(full_df):,}")}</p>',
+            unsafe_allow_html=True,
+        )
+        st.dataframe(full_df.head(10), use_container_width=True, hide_index=True)
 
 
 def upload_page() -> None:
@@ -61,14 +60,25 @@ def upload_page() -> None:
 
     render_page_header(t("upload_title", lang), t("upload_subtitle", lang), lang, eyebrow=t("eyebrow_upload", lang))
 
-    st.markdown('<div class="maz-card">', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader(
-        t("uploader_label", lang), type=["xlsx", "csv"], label_visibility="collapsed",
-    )
-    st.markdown(f'<p class="maz-upload-hint">{t("upload_hint", lang)}</p>', unsafe_allow_html=True)
-    st.markdown(f'<p class="maz-upload-hint">{t("upload_dropzone_types_hint", lang)}</p>', unsafe_allow_html=True)
-    preview_mode = st.checkbox(t("preview_checkbox_label", lang), value=False, help=t("preview_checkbox_help", lang))
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container(key="maz_card_upload_dropzone"):
+        st.markdown(f'<p class="maz-upload-dropzone-title">{t("upload_drag_here", lang)}</p>', unsafe_allow_html=True)
+        uploaded_file = st.file_uploader(
+            t("uploader_label", lang), type=["xlsx", "csv"], label_visibility="collapsed",
+        )
+        st.markdown(
+            f'<div class="maz-upload-chips">'
+            f'<span class="maz-upload-chip">{t("upload_chip_xlsx", lang)}</span>'
+            f'<span class="maz-upload-chip">{t("upload_chip_csv", lang)}</span>'
+            f'<span class="maz-upload-chip">{t("upload_chip_maxsize", lang)}</span>'
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(f'<p class="maz-upload-hint">{t("upload_hint", lang)}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="maz-upload-helper-line">{t("upload_auto_process_helper", lang)}</p>', unsafe_allow_html=True)
+
+    with st.container(key="maz_card_upload_preview_toggle"):
+        preview_mode = st.toggle(t("preview_checkbox_label", lang), value=False)
+        st.markdown(f'<p class="maz-upload-helper-line">{t("upload_preview_toggle_help", lang)}</p>', unsafe_allow_html=True)
 
     if preview_mode:
         st.warning(t("preview_warning", lang))
@@ -111,25 +121,27 @@ def upload_page() -> None:
     render_step_indicator(STEP_EXTRACT, step_labels)
 
     if pipeline_result.invalid_rows:
-        st.markdown(
-            f'<div class="maz-card" style="border-color:#FCA5A5;background:#FEF2F2;">'
-            f'<p class="maz-card-title" style="color:{theme.DANGER};">'
-            f'{t("upload_error_banner_title", lang)} ({len(pipeline_result.invalid_rows)})</p>',
-            unsafe_allow_html=True,
-        )
-        st.dataframe(pd.DataFrame(pipeline_result.invalid_rows), use_container_width=True, hide_index=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(key="maz_card_error_banner"):
+            st.markdown(
+                f'<p class="maz-card-title" style="color:{theme.DANGER};">'
+                f'{t("upload_error_banner_title", lang)} ({len(pipeline_result.invalid_rows)})</p>',
+                unsafe_allow_html=True,
+            )
+            st.dataframe(pd.DataFrame(pipeline_result.invalid_rows), use_container_width=True, hide_index=True)
 
     st.markdown('<div id="maz-offline-results"></div>', unsafe_allow_html=True)
     st.success(t("success_processed", lang))
 
+    def _icon(name: str) -> str:
+        return f'<span class="material-symbols-outlined">{name}</span>'
+
     summary = pipeline_result.summary
     render_kpi_row(
         [
-            KPICardData(label=t("metric_valid_numbers", lang), value=f"{summary.get(_SUMMARY_TOTAL_VALID, 0):,}", icon="📱"),
-            KPICardData(label=t("metric_offline", lang), value=f"{summary.get(_SUMMARY_OFFLINE, 0):,}", icon="✅", accent=True),
-            KPICardData(label=t("metric_excluded", lang), value=f"{summary.get(_SUMMARY_EXCLUDED, 0):,}", icon="🚫"),
-            KPICardData(label=t("metric_invalid", lang), value=f"{summary.get(_SUMMARY_INVALID, 0):,}", icon="⚠️"),
+            KPICardData(label=t("metric_valid_numbers", lang), value=f"{summary.get(_SUMMARY_TOTAL_VALID, 0):,}", icon=_icon("smartphone")),
+            KPICardData(label=t("metric_offline", lang), value=f"{summary.get(_SUMMARY_OFFLINE, 0):,}", icon=_icon("wifi_off"), accent=True),
+            KPICardData(label=t("metric_excluded", lang), value=f"{summary.get(_SUMMARY_EXCLUDED, 0):,}", icon=_icon("block")),
+            KPICardData(label=t("metric_invalid", lang), value=f"{summary.get(_SUMMARY_INVALID, 0):,}", icon=_icon("warning")),
         ]
     )
 

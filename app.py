@@ -33,9 +33,9 @@ render_sidebar_chrome(lang)
 
 pg = st.navigation(
     [
-        st.Page(dashboard_page, title=t("dashboard_title", lang), icon="📊", default=True),
-        st.Page(upload_page, title=t("upload_title", lang), icon="📤"),
-        st.Page(inbound_call_page, title=t("inbound_call_title", lang), icon="📞"),
+        st.Page(dashboard_page, title=t("dashboard_title", lang), icon=":material/dashboard:", default=True),
+        st.Page(upload_page, title=t("upload_title", lang), icon=":material/upload:"),
+        st.Page(inbound_call_page, title=t("inbound_call_title", lang), icon=":material/call:"),
     ]
 )
 pg.run()

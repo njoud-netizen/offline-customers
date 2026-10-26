@@ -9,13 +9,24 @@ Design tokens + الحقنة الموحّدة لـ CSS لثيم Maznexa **الف
 
 # ==== Maznexa Brand Color Guidelines — قيم حرفية، لا تقريب ====
 MAZNEXA_PURPLE = "#9354FF"
+PURPLE_V2 = "#7B3FF2"        # primaryColor الجديد (config.toml) — أزرار الرفع، دائرة الخطوة الحالية
+PURPLE_ACTIVE_NAV = "#6A2FE0"  # نص عنصر الشريط الجانبي النشط
 PURPLE_LINK = "#7A3BF0"
+PURPLE_DEEP = "#5B21B6"      # عائلة بنفسجي جديدة (صفحة Inbound Call — بنفسجي فقط، بدون أخضر/أزرق/أصفر)
+PURPLE_DARKEST = "#2E1065"
+PURPLE_LIGHT = "#C4A6FF"
+PURPLE_PALE = "#E4D7FF"
+PURPLE_TINT = "#F1EAFF"
 PURPLE_WAVE = "#683EB5"
 NIGHT_PURPLE = "#3E296B"
 DARK_PURPLE = "#131321"
 TECHNO_PURPLE = "#C9AAFF"
 LUMINOUS_PURPLE = "#AE7FFF"
 NEON_BLUE = "#6265FE"
+
+TEXT_MUTED = "#5D5870"       # نص ثانوي (عنوان فرعي، تعليمات الرفع، أيقونة طي الشريط الجانبي)
+TEXT_MUTED_DARK = "#3B3650"  # نص ثانوي أغمق (الشريط الجانبي غير النشط، محاور الرسوم)
+STEP_CARD_BORDER = "#E7E2F3"
 
 WHITE = "#FFFFFF"
 OFF_WHITE = "#F5F5F5"
@@ -36,7 +47,8 @@ TEXT_SECONDARY = "#6B6880"
 
 SUCCESS = "#10B981"
 WARNING = "#F59E0B"
-DANGER = "#DC2626"
+DANGER = "#B42318"
+DANGER_BG = "#FEE4E2"  # مسموح فقط لرسائل الخطأ — القيد الوحيد غير البنفسجي بصفحة Inbound Call
 
 CHART_AXIS_PRIMARY = MAZNEXA_PURPLE
 CHART_AXIS_SECONDARY = "#3B82F6"
@@ -44,28 +56,32 @@ CHART_AXIS_SECONDARY = "#3B82F6"
 GRADIENT_PRIMARY = f"linear-gradient(135deg, {MAZNEXA_PURPLE} 0%, {PURPLE_WAVE} 100%)"
 GRADIENT_SOFT = f"linear-gradient(135deg, rgba(147,84,255,0.10) 0%, rgba(104,62,181,0.04) 100%)"
 
-# ==== شارات الحالة/التصنيف (Pill Badges) — قيم حرفية من المواصفة ====
-BADGE_SERVICED_TEXT = "#047857"
-BADGE_SERVICED_BG = "#E7F8F0"
-BADGE_SERVICED_BAR = "#10B981"
-BADGE_OFFERS_TEXT = "#6D28D9"
-BADGE_OFFERS_BG = "#F1EAFF"
-BADGE_ORDER_TEXT = "#1D4ED8"
-BADGE_ORDER_BG = "#E8F0FE"
-BADGE_OTHER_TEXT = "#4B4B5C"
-BADGE_OTHER_BG = "#F1F0F5"
-BADGE_REPEAT_TEXT = "#92400E"
-BADGE_REPEAT_BG = "#FEF3C7"
+# ==== شارات الحالة/التصنيف (Pill Badges) — بنفسجي فقط (استبدال الأخضر/الأزرق/الأصفر السابقين) ====
+BADGE_SERVICED_TEXT = "#5B21B6"
+BADGE_SERVICED_BG = "#F1EAFF"
+BADGE_SERVICED_DOT = "#9354FF"  # نقطة الحالة بالشارة + نفس لون شريط تقدم KPI "تمت الخدمة"
+BADGE_OFFERS_TEXT = "#FFFFFF"
+BADGE_OFFERS_BG = "#9354FF"
+BADGE_ORDER_TEXT = "#2E1065"
+BADGE_ORDER_BG = "#E4D7FF"
+BADGE_OTHER_TEXT = "#6B6880"
+BADGE_OTHER_BG = "#F3F0FA"
+BADGE_REPEAT_TEXT = "#FFFFFF"
+BADGE_REPEAT_BG = "#5B21B6"
 
-# ترتيب ثابت للألوان الفئوية (Categorical) بالرسوم — نفس البراند ياخذ نفس اللون دائمًا.
+# ترتيب ثابت للألوان الفئوية (Categorical) بالرسوم — نفس البراند ياخذ نفس اللون دائمًا، عائلة
+# بنفسجي بالكامل. القيم المحدَّدة حرفيًا بالمواصفة؛ BedQuarterUAE لم تُحدَّد قيمتها بالرسالة
+# (انقطعت) — استخدمت MAZNEXA_PURPLE كأقرب درجة بنفسجية متوسطة ضمن نفس العائلة حتى تصحّح لاحقًا.
 BRAND_PALETTE_ORDER = ["#9354FF", "#3B82F6", "#10B981", "#F59E0B", "#C4A6FF", "#A9A5BA"]
 BRAND_COLORS = {
-    "BedQuarterKSA": BRAND_PALETTE_ORDER[0],
-    "BedHouse": BRAND_PALETTE_ORDER[1],
-    "LaZBoy": BRAND_PALETTE_ORDER[2],
+    "BedHouse": "#7B3FF2",
+    "BedQuarterKSA": "#2A1A5E",
+    "BedQuarterBAH": "#B79BFF",
+    "BedQuarterUAE": MAZNEXA_PURPLE,  # غير محدّدة بالمواصفة — افتراض مؤقت (راجع الملاحظة أعلاه)
+    "LaZBoy": PURPLE_DEEP,
 }
 FALLBACK_BRAND_COLOR = MEDIUM_GRAY
-_FALLBACK_PALETTE_CYCLE = BRAND_PALETTE_ORDER[3:] + BRAND_PALETTE_ORDER[:3]
+_FALLBACK_PALETTE_CYCLE = [PURPLE_LIGHT, PURPLE_WAVE, PURPLE_DARKEST, PURPLE_V2, NIGHT_PURPLE, TECHNO_PURPLE]
 
 FONT_STACK = "'IBM Plex Sans Arabic', 'Poppins', 'Segoe UI', Tahoma, Arial, sans-serif"
 FONT_STACK_LTR = "'Poppins', 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif"
@@ -75,6 +91,43 @@ GOOGLE_FONTS_URL = (
     "family=IBM+Plex+Sans+Arabic:wght@400;500;600;700;800"
     "&family=Poppins:wght@400;500;600;700;800&display=swap"
 )
+# أيقونات خطّية (Line icons) بدل الإيموجي — نفس تسمية :material/x: المستخدمة أصلًا بـ st.Page(icon=...)،
+# محمّلة كخط قابل لتلوينه بـCSS (color) لاستخدامها بالـHTML الخام (بطاقات "أبرز المؤشرات").
+MATERIAL_SYMBOLS_URL = (
+    "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
+)
+
+
+def _maznexa_altair_theme() -> dict:
+    """خلفية شفافة + محاور/نصوص #3B3650 + شبكة أفقية فقط (محور Y) — مطبَّقة مركزيًا على كل
+    رسوم Altair بالتطبيق (charts_sales.py, charts_offline.py, exclusion chart بصفحة الرفع)
+    بدون الحاجة لتعديل كل ملف رسم على حدة؛ لا تتعارض مع ألوان mark/encoding المحددة يدويًا
+    بكل رسم (البراندات، الشرائح...) لأنها إعدادات هيكلية عامة فقط (خلفية/محاور/شبكة)."""
+    return {
+        "config": {
+            "background": "transparent",
+            "view": {"strokeWidth": 0},
+            "font": "IBM Plex Sans Arabic",
+            "axis": {
+                "labelColor": TEXT_MUTED_DARK,
+                "titleColor": TEXT_MUTED_DARK,
+                "labelFont": "IBM Plex Sans Arabic",
+                "titleFont": "IBM Plex Sans Arabic",
+                "gridColor": BORDER,
+                "domainColor": BORDER,
+                "tickColor": BORDER,
+            },
+            "axisX": {"grid": False},
+            "axisY": {"grid": True},
+            "legend": {"labelColor": TEXT_MUTED_DARK, "titleColor": TEXT_MUTED_DARK},
+        }
+    }
+
+
+def register_altair_theme() -> None:
+    import altair as alt
+    alt.themes.register("maznexa", _maznexa_altair_theme)
+    alt.themes.enable("maznexa")
 
 
 def brand_color_map(brand_names: list[str]) -> dict[str, str]:
@@ -94,6 +147,8 @@ def brand_color_map(brand_names: list[str]) -> dict[str, str]:
 
 def inject_theme(lang: str) -> None:
     import streamlit as st
+
+    register_altair_theme()
 
     text_dir = "rtl" if lang == "ar" else "ltr"
     is_rtl = lang == "ar"
@@ -123,6 +178,17 @@ def inject_theme(lang: str) -> None:
         f"""
         <style>
         @import url('{GOOGLE_FONTS_URL}');
+        @import url('{MATERIAL_SYMBOLS_URL}');
+
+        .material-symbols-outlined {{
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 20px;
+            line-height: 1;
+            vertical-align: middle;
+            -webkit-font-smoothing: antialiased;
+        }}
 
         :root {{
             --bg-primary: {BG_PRIMARY};
@@ -171,30 +237,52 @@ def inject_theme(lang: str) -> None:
             background: var(--bg-secondary);
             border-inline-end: 1px solid var(--border);
         }}
-        [data-testid="stSidebarNav"] a {{
+        /* دعم اسمي testid محتملين حسب نسخة Streamlit (stSidebarNav a القديم، stSidebarNavLink
+           الأحدث) معًا — غير ضار لو أحدهما غير مطابق فعليًا. عنصر الصفحة النشطة الآن تينت فاتح
+           بنفسجي (#F1EBFF) بدل التعبئة الكاملة السابقة. */
+        [data-testid="stSidebarNav"] a, [data-testid="stSidebarNavLink"] {{
             border-radius: var(--radius-input);
             margin: 2px 8px;
-            color: var(--text-primary);
+            color: {TEXT_MUTED_DARK};
+            background: transparent;
             transition: background 180ms ease-in-out, color 180ms ease-in-out;
             min-height: 44px;
             display: flex;
             align-items: center;
         }}
-        [data-testid="stSidebarNav"] a:hover {{
-            background: var(--surface-hover);
+        [data-testid="stSidebarNav"] a span, [data-testid="stSidebarNavLink"] span {{
+            color: {TEXT_MUTED_DARK} !important;
+            opacity: 1 !important;
         }}
-        [data-testid="stSidebarNav"] a[aria-current="page"] {{
-            background: {MAZNEXA_PURPLE} !important;
+        [data-testid="stSidebarNav"] a:hover, [data-testid="stSidebarNavLink"]:hover {{
+            background: #F3F0FA;
         }}
-        [data-testid="stSidebarNav"] a[aria-current="page"] span {{
-            color: {WHITE} !important;
-            font-weight: 700;
+        [data-testid="stSidebarNav"] a[aria-current="page"], [data-testid="stSidebarNavLink"][aria-current="page"] {{
+            background: #F1EBFF !important;
+            border-radius: 12px;
+        }}
+        [data-testid="stSidebarNav"] a[aria-current="page"] span, [data-testid="stSidebarNavLink"][aria-current="page"] span {{
+            color: {PURPLE_ACTIVE_NAV} !important;
+            font-weight: 600;
+        }}
+        [data-testid="stSidebarCollapseButton"] svg {{ color: {TEXT_MUTED} !important; }}
+        /* مبدّل AR/EN بالشريط الجانبي: أبيض بحدود فاتحة ونص داكن (بدل ألوان Streamlit الافتراضية) */
+        [data-testid="stSidebar"] [data-baseweb="select"] > div {{
+            background: {WHITE} !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text-primary) !important;
         }}
 
         {rtl_sidebar_css}
 
-        /* ==== بطاقة عامة ==== */
-        .maz-card {{
+        /* ==== بطاقة عامة ====
+           .maz-card (class خام): تُستخدم فقط عند بناء كل HTML الكرت بنص واحد كامل داخل
+           st.markdown() واحد (فتح+محتوى+إغلاق بنفس الاستدعاء) — آمن.
+           div[class*="st-key-maz_card_"]: المسار الصحيح لأي كرت يحوي ودجت Streamlit حقيقية
+           بداخله (st.file_uploader, st.button...) — st.container(key="maz_card_...") حقيقي
+           يُحيط فعليًا بكل ما بداخله بالـDOM، بعكس فتح/إغلاق <div> بنداءين منفصلين (كان العطل
+           الجذري لـ"الأشرطة البيضاء الفاضية": كل st.markdown ينتج عنصر DOM مستقل تمامًا). */
+        .maz-card, div[class*="st-key-maz_card_"] {{
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius-card);
@@ -233,7 +321,7 @@ def inject_theme(lang: str) -> None:
             margin-bottom: 4px;
             letter-spacing: 0.02em;
         }}
-        .maz-page-header {{
+        .maz-page-header, div[class*="st-key-maz_page_header"] {{
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -244,6 +332,7 @@ def inject_theme(lang: str) -> None:
             padding: 20px 26px;
             margin-bottom: 22px;
         }}
+        div[class*="st-key-maz_page_header"] > div {{ width: 100%; }}
         .maz-page-header h1 {{
             font-size: 34px;
             font-weight: 800;
@@ -302,27 +391,73 @@ def inject_theme(lang: str) -> None:
 
         /* ==== منطقة رفع الملف ==== */
         [data-testid="stFileUploaderDropzone"] {{
-            background: #FAF8FE;
-            border: 2px dashed #C4A6FF !important;
-            border-radius: 14px !important;
+            background: {WHITE};
+            border: 2px dashed #B9A2FF !important;
+            border-radius: 24px !important;
+            padding: 10px !important;
+        }}
+        /* أيقونة الرفع داخل دائرة #F1EBFF */
+        [data-testid="stFileUploaderDropzoneIcon"] {{
+            background: #F1EBFF !important;
+            border-radius: 50% !important;
+            padding: 10px !important;
+            display: inline-flex !important;
         }}
         [data-testid="stFileUploaderDropzone"] svg {{
-            fill: {MAZNEXA_PURPLE} !important;
-            color: {MAZNEXA_PURPLE} !important;
+            fill: {PURPLE_V2} !important;
+            color: {PURPLE_V2} !important;
         }}
+        /* نص تعليمات الرفع الأصلي (كان يظهر أبيض على أبيض سابقًا — الإصلاح الحقيقي هنا) */
+        [data-testid="stFileUploaderDropzoneInstructions"] * {{
+            color: {TEXT_MUTED} !important;
+        }}
+        /* زر الرفع: نص "Browse files" الأصلي يُخفى ونستبدله بـ"اختر ملف" عبر ::after */
         [data-testid="stFileUploaderDropzone"] button {{
-            background-color: {MAZNEXA_PURPLE} !important;
-            color: {WHITE} !important;
+            background-color: {PURPLE_V2} !important;
+            color: transparent !important;
+            font-size: 0 !important;
             border: none !important;
             border-radius: 8px !important;
+            position: relative;
+        }}
+        [data-testid="stFileUploaderDropzone"] button::after {{
+            content: "اختر ملف";
+            color: {WHITE} !important;
+            font-size: 0.95rem;
+            font-weight: 600;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
         }}
         [data-testid="stFileUploaderDropzone"] button:hover {{
             background-color: {PURPLE_WAVE} !important;
         }}
         .maz-upload-hint {{
-            color: var(--text-secondary);
+            color: {TEXT_MUTED};
             font-size: 0.9rem;
             margin-top: 6px;
+        }}
+        /* Chips صغيرة تحت منطقة الرفع (XLSX · CSV · حتى 200MB) */
+        .maz-upload-chips {{ display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }}
+        .maz-upload-chip {{
+            background: #F1EBFF;
+            color: {PURPLE_V2};
+            font-size: 0.76rem;
+            font-weight: 600;
+            padding: 3px 12px;
+            border-radius: 999px;
+        }}
+        .maz-upload-dropzone-title {{
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin: 10px 0 2px 0;
+        }}
+        .maz-upload-helper-line {{
+            color: {TEXT_MUTED};
+            font-size: 0.82rem;
+            margin-top: 10px;
         }}
 
         /* ==== بطاقات المؤشرات (KPI) ==== */
@@ -385,7 +520,7 @@ def inject_theme(lang: str) -> None:
         .maz-kpi-progress-fill {{
             height: 100%;
             border-radius: 999px;
-            background: {BADGE_SERVICED_BAR};
+            background: {BADGE_SERVICED_DOT};
         }}
 
         /* ==== بطاقات الأبرز (Insight Cards) ==== */
@@ -400,20 +535,32 @@ def inject_theme(lang: str) -> None:
             width: 36px;
             height: 36px;
             border-radius: 10px;
-            background: {GRADIENT_SOFT}, var(--surface);
+            background: {PURPLE_TINT};
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.1rem;
             margin-bottom: 10px;
         }}
+        .maz-insight-icon-tile .material-symbols-outlined {{ color: {PURPLE_LINK}; font-size: 20px; }}
         .maz-insight-label {{ color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 4px; }}
         .maz-insight-value {{ color: var(--text-primary); font-weight: 800; font-size: 22px; line-height: 1.3; }}
         .maz-insight-meta {{ color: var(--text-secondary); font-size: 0.78rem; margin-top: 4px; }}
         .maz-mini-bar-row {{ display: flex; align-items: center; gap: 8px; margin-top: 6px; }}
         .maz-mini-bar-label {{ font-size: 0.76rem; color: var(--text-secondary); min-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-        .maz-mini-bar-track {{ flex: 1; height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; }}
+        .maz-mini-bar-track {{ flex: 1; height: 6px; border-radius: 999px; background: {PURPLE_TINT}; overflow: hidden; }}
         .maz-mini-bar-fill {{ height: 100%; border-radius: 999px; background: {MAZNEXA_PURPLE}; }}
+        .maz-mini-bar-fill-secondary {{ height: 100%; border-radius: 999px; background: {PURPLE_LIGHT}; }}
+
+        /* ==== نقطة الحالة بشارة "تمت الخدمة" ==== */
+        .maz-status-dot {{
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: {BADGE_SERVICED_DOT};
+            margin-inline-end: 5px;
+        }}
 
         /* ==== شارات الحالة/التصنيف (Pill Badges) ==== */
         .maz-badge-pill {{
@@ -429,23 +576,35 @@ def inject_theme(lang: str) -> None:
         .maz-badge-order {{ background: {BADGE_ORDER_BG}; color: {BADGE_ORDER_TEXT}; }}
         .maz-badge-other {{ background: {BADGE_OTHER_BG}; color: {BADGE_OTHER_TEXT}; }}
         .maz-badge-repeat {{ background: {BADGE_REPEAT_BG}; color: {BADGE_REPEAT_TEXT}; }}
-        .maz-badge-danger {{ background: #FEE2E2; color: {DANGER}; }}
+        .maz-badge-danger {{ background: {DANGER_BG}; color: {DANGER}; }}
 
-        /* ==== مؤشر الخطوات (Step Indicator) ==== */
+        /* ==== بانر خطأ (أحمر — مسموح فقط لرسائل الخطأ) ==== */
+        div[class*="st-key-maz_card_error_banner"] {{
+            background: {DANGER_BG} !important;
+            border-color: #FCA5A5 !important;
+        }}
+
+        /* ==== مؤشر الخطوات (Step Indicator) — بطاقات بيضاء بحدود، الخطوة الحالية حدها بنفسجي ==== */
         .maz-step-indicator {{ display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }}
-        .maz-step {{ display: flex; align-items: center; gap: 8px; }}
+        .maz-step {{
+            display: flex; align-items: center; gap: 8px;
+            background: {WHITE};
+            border: 1px solid {STEP_CARD_BORDER};
+            border-radius: 14px;
+            padding: 10px 16px;
+            flex: 1;
+        }}
+        .maz-step.maz-step-current {{ border-color: {MAZNEXA_PURPLE}; }}
         .maz-step-circle {{
             width: 28px; height: 28px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             font-size: 0.8rem; font-weight: 700; color: {WHITE};
-            background: var(--border-strong);
+            background: {PURPLE_V2};
+            flex-shrink: 0;
         }}
-        .maz-step-circle.maz-step-current {{ background: {MAZNEXA_PURPLE}; }}
-        .maz-step-circle.maz-step-done {{ background: {SUCCESS}; }}
-        .maz-step-label {{ font-size: 0.85rem; color: var(--text-secondary); }}
+        .maz-step-label {{ font-size: 0.85rem; color: {TEXT_MUTED}; }}
         .maz-step-label.maz-step-current, .maz-step-label.maz-step-done {{ color: var(--text-primary); font-weight: 600; }}
-        .maz-step-connector {{ flex: 1; height: 2px; background: var(--border-strong); min-width: 24px; }}
-        .maz-step-connector.maz-step-done {{ background: {SUCCESS}; }}
+        .maz-step-connector {{ width: 20px; height: 2px; background: {STEP_CARD_BORDER}; flex-shrink: 0; }}
 
         /* ==== رسوم Vega-Lite (Altair) — إصلاح تراكب Legend فوق النص بـRTL ==== */
         [data-testid="stVegaLiteChart"],
@@ -461,7 +620,7 @@ def inject_theme(lang: str) -> None:
         }}
 
         /* ==== الجدول المخصص (Inbound Call) ==== */
-        .maz-table-card {{
+        .maz-table-card, div[class*="st-key-maz_table_card_"] {{
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius-card);
@@ -562,8 +721,8 @@ def inject_theme(lang: str) -> None:
 
         /* ==== شاشات ضيقة (390px) ==== */
         @media (max-width: 480px) {{
-            .maz-page-header {{ flex-direction: column; align-items: flex-start; }}
-            .maz-page-header h1 {{ font-size: 1.5rem; }}
+            .maz-page-header, div[class*="st-key-maz_page_header"] {{ flex-direction: column; align-items: flex-start; }}
+            .maz-page-header h1, div[class*="st-key-maz_page_header"] h1 {{ font-size: 1.5rem; }}
         }}
         </style>
         """,

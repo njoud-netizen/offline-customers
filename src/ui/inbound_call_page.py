@@ -16,11 +16,13 @@ from src.config import load_config
 from src.inbound_pipeline import run_inbound_import
 from src.translations import t
 
+from . import theme
 from .empty_state import render_empty_state
 from .header import render_footer, render_page_header
 from .inbound_table import render_filter_bar, render_table_body
 from .kpi_card import KPICardData, render_kpi_row
 from .phone_format import format_phone_display
+from .step_indicator import render_step_indicator
 
 
 def _top_value_insight(series: pd.Series) -> tuple[str, int, float]:
@@ -45,7 +47,7 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str) -> None:
         meta = t("inbound_insight_of_total", lang).format(pct=f"{pct:.0f}") if company else t("inbound_insight_empty", lang)
         st.markdown(
             f'<div class="maz-insight-card">'
-            f'<div class="maz-insight-icon-tile">🏢</div>'
+            f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">business</span></div>'
             f'<div class="maz-insight-label">{t("inbound_insight_top_company", lang)}</div>'
             f'<div class="maz-insight-value">{company or "—"}</div>'
             f'<div class="maz-insight-meta">{t("inbound_insight_times", lang).format(count=count)} · {meta}</div>'
@@ -62,12 +64,14 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str) -> None:
         max_count = int(top3.iloc[0]) if not top3.empty else 0
 
         bars_html = ""
-        for value, cnt in top3.items():
+        for idx, (value, cnt) in enumerate(top3.items()):
             width_pct = (cnt / max_count * 100) if max_count else 0
+            # الشريط الأول #9354FF، الباقي (الثاني/الثالث) #C4A6FF — حسب المواصفة.
+            fill_class = "maz-mini-bar-fill" if idx == 0 else "maz-mini-bar-fill-secondary"
             bars_html += (
                 f'<div class="maz-mini-bar-row">'
                 f'<span class="maz-mini-bar-label" title="{value}">{value}</span>'
-                f'<div class="maz-mini-bar-track"><div class="maz-mini-bar-fill" style="width:{width_pct:.0f}%;"></div></div>'
+                f'<div class="maz-mini-bar-track"><div class="{fill_class}" style="width:{width_pct:.0f}%;"></div></div>'
                 f'<span style="font-size:0.76rem;color:var(--text-secondary);">{cnt}</span>'
                 f"</div>"
             )
@@ -78,7 +82,7 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str) -> None:
         top_value_display = top3.index[0] if not top3.empty else "—"
         st.markdown(
             f'<div class="maz-insight-card">'
-            f'<div class="maz-insight-icon-tile">💬</div>'
+            f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">forum</span></div>'
             f'<div class="maz-insight-label">{t("inbound_insight_top_reason", lang)}</div>'
             f'<div class="maz-insight-value" style="font-size:16px;">{top_value_display}</div>'
             f"{bars_html}{no_reason_line}"
@@ -98,7 +102,7 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str) -> None:
         meta = common_reason if common_reason else t("inbound_insight_empty", lang)
         st.markdown(
             f'<div class="maz-insight-card">'
-            f'<div class="maz-insight-icon-tile">📞</div>'
+            f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">call</span></div>'
             f'<div class="maz-insight-label">{t("inbound_insight_top_number", lang)}</div>'
             f'<div class="maz-insight-value" dir="ltr" style="font-size:18px;">{display_number}</div>'
             f'<div class="maz-insight-meta">{t("inbound_insight_times", lang).format(count=count)} · {meta}</div>'
@@ -107,8 +111,12 @@ def _render_insight_cards(filtered_df: pd.DataFrame, lang: str) -> None:
         )
 
 
+_INBOUND_STEPS = ["upload", "process", "results"]
+
+
 def inbound_call_page() -> None:
     lang = st.session_state.lang
+    step_labels = [t("inbound_step_upload_label", lang), t("inbound_step_process_label", lang), t("inbound_step_results_label", lang)]
 
     today_str = date.today().strftime("%Y-%m-%d")
     render_page_header(
@@ -118,87 +126,106 @@ def inbound_call_page() -> None:
         eyebrow=t("eyebrow_inbound", lang),
     )
 
-    st.markdown('<div class="maz-card">', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader(
-        t("inbound_uploader_label", lang), type=["xlsx", "csv"], label_visibility="collapsed",
-    )
-    st.markdown(f'<p class="maz-upload-hint">{t("inbound_upload_hint", lang)}</p>', unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container(key="maz_card_inbound_upload"):
+        st.markdown(f'<p class="maz-upload-dropzone-title">{t("upload_drag_here", lang)}</p>', unsafe_allow_html=True)
+        uploaded_file = st.file_uploader(
+            t("inbound_uploader_label", lang), type=["xlsx", "csv"], label_visibility="collapsed",
+        )
+        st.markdown(
+            f'<div class="maz-upload-chips">'
+            f'<span class="maz-upload-chip">{t("upload_chip_xlsx", lang)}</span>'
+            f'<span class="maz-upload-chip">{t("upload_chip_csv", lang)}</span>'
+            f'<span class="maz-upload-chip">{t("upload_chip_maxsize", lang)}</span>'
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(f'<p class="maz-upload-hint">{t("inbound_upload_hint", lang)}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="maz-upload-helper-line">{t("upload_auto_process_helper", lang)}</p>', unsafe_allow_html=True)
 
-    if uploaded_file is not None:
-        progress_box = st.empty()
-        log_lines: list[str] = []
+    if uploaded_file is None:
+        render_step_indicator("upload", step_labels, steps=_INBOUND_STEPS)
+        render_footer(lang)
+        return
 
-        def on_progress(msg: str) -> None:
-            log_lines.append(msg)
-            progress_box.info("\n\n".join(log_lines))
+    progress_box = st.empty()
+    log_lines: list[str] = []
 
-        result = None
-        try:
-            with st.spinner(t("inbound_spinner_processing", lang)):
-                cfg = load_config()
-                result = run_inbound_import(uploaded_file, cfg=cfg, on_progress=on_progress)
-            progress_box.empty()
-        except CallExtractionError as e:
-            progress_box.empty()
-            st.error(f"{t('inbound_error_processing', lang)}\n\n{e}")
-        except Exception as e:
-            progress_box.empty()
-            st.error(f"{t('inbound_error_processing', lang)}\n\n{e}")
+    def on_progress(msg: str) -> None:
+        log_lines.append(msg)
+        progress_box.info("\n\n".join(log_lines))
 
-        if result is not None:
-            st.success(t("inbound_success_processed", lang))
+    result = None
+    try:
+        with st.spinner(t("inbound_spinner_processing", lang)):
+            cfg = load_config()
+            result = run_inbound_import(uploaded_file, cfg=cfg, on_progress=on_progress)
+        progress_box.empty()
+    except CallExtractionError as e:
+        progress_box.empty()
+        render_step_indicator("process", step_labels, steps=_INBOUND_STEPS)
+        st.error(f"{t('inbound_error_processing', lang)}\n\n{e}")
+    except Exception as e:
+        progress_box.empty()
+        render_step_indicator("process", step_labels, steps=_INBOUND_STEPS)
+        st.error(f"{t('inbound_error_processing', lang)}\n\n{e}")
 
-            if not result.rows:
-                render_empty_state(t("inbound_warning_no_rows", lang))
-            else:
-                filtered_df, group_enabled = render_filter_bar(result.rows, lang)
+    if result is not None:
+        render_step_indicator("results", step_labels, steps=_INBOUND_STEPS)
+        st.success(t("inbound_success_processed", lang))
 
-                total = len(filtered_df)
-                serviced_count = int((filtered_df["Call Status"].astype(str).str.lower() == "serviced").sum())
-                serviced_pct = (serviced_count / total * 100) if total else 0.0
-                unique_numbers = filtered_df["Number"].nunique()
-                repeat_numbers = filtered_df["Number"].value_counts()
-                repeated_count = int((repeat_numbers > 1).sum())
+        if not result.rows:
+            render_empty_state(t("inbound_warning_no_rows", lang))
+        else:
+            filtered_df, group_enabled = render_filter_bar(result.rows, lang)
 
-                render_kpi_row(
-                    [
-                        KPICardData(label=t("inbound_metric_total", lang), value=f"{total:,}", icon="📞", accent=True),
-                        KPICardData(
-                            label=t("inbound_kpi_serviced", lang), value=f"{serviced_count:,}", icon="✅",
-                            progress_pct=serviced_pct,
-                        ),
-                        KPICardData(
-                            label=t("inbound_kpi_unique_numbers", lang), value=f"{unique_numbers:,}", icon="🔢",
-                            sub_line=t("inbound_kpi_unique_sub", lang).format(count=repeated_count),
-                        ),
-                    ]
-                )
+            total = len(filtered_df)
+            serviced_count = int((filtered_df["Call Status"].astype(str).str.lower() == "serviced").sum())
+            serviced_pct = (serviced_count / total * 100) if total else 0.0
+            unique_numbers = filtered_df["Number"].nunique()
+            repeat_numbers = filtered_df["Number"].value_counts()
+            repeated_count = int((repeat_numbers > 1).sum())
 
-                _render_insight_cards(filtered_df, lang)
+            render_kpi_row(
+                [
+                    KPICardData(
+                        label=t("inbound_metric_total", lang), value=f"{total:,}", icon="📞", accent=True,
+                        sub_line=t("inbound_kpi_total_sub", lang),
+                    ),
+                    KPICardData(
+                        label=t("inbound_kpi_serviced", lang), value=f"{serviced_count:,}", icon="✅",
+                        progress_pct=serviced_pct, value_color=theme.PURPLE_DEEP,
+                    ),
+                    KPICardData(
+                        label=t("inbound_kpi_unique_numbers", lang), value=f"{unique_numbers:,}", icon="🔢",
+                        sub_line=t("inbound_kpi_unique_sub", lang).format(count=repeated_count),
+                    ),
+                ]
+            )
 
-                render_table_body(len(result.rows), filtered_df, group_enabled, lang)
+            _render_insight_cards(filtered_df, lang)
 
-            if result.needs_review:
-                with st.expander(f"{t('inbound_expander_review', lang)} ({len(result.needs_review)})"):
-                    review_df = pd.DataFrame(result.needs_review).rename(columns={
-                        "call_id": t("inbound_review_col_id", lang),
-                        "number": t("inbound_review_col_number", lang),
-                        "reason": t("inbound_review_col_reason", lang),
-                        "call_summary": t("inbound_review_col_summary", lang),
-                    })
-                    st.dataframe(review_df, use_container_width=True, hide_index=True)
+            render_table_body(len(result.rows), filtered_df, group_enabled, lang)
 
-            if result.output_path:
-                with open(result.output_path, "rb") as f:
-                    file_data = f.read()
-                file_name = result.output_path.replace("\\", "/").split("/")[-1]
-                st.download_button(
-                    t("inbound_download_label", lang),
-                    data=file_data,
-                    file_name=file_name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                )
+        if result.needs_review:
+            with st.expander(f"{t('inbound_expander_review', lang)} ({len(result.needs_review)})"):
+                review_df = pd.DataFrame(result.needs_review).rename(columns={
+                    "call_id": t("inbound_review_col_id", lang),
+                    "number": t("inbound_review_col_number", lang),
+                    "reason": t("inbound_review_col_reason", lang),
+                    "call_summary": t("inbound_review_col_summary", lang),
+                })
+                st.dataframe(review_df, use_container_width=True, hide_index=True)
+
+        if result.output_path:
+            with open(result.output_path, "rb") as f:
+                file_data = f.read()
+            file_name = result.output_path.replace("\\", "/").split("/")[-1]
+            st.download_button(
+                t("inbound_download_label", lang),
+                data=file_data,
+                file_name=file_name,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
 
     render_footer(lang)

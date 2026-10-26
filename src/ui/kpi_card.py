@@ -27,8 +27,9 @@ class KPICardData:
     sparkline_df: pd.DataFrame | None = None  # أعمدة: "x" (تاريخ), "y" (قيمة)
     tooltip: str | None = None
     accent: bool = False  # True = بطاقة بنفسجية معبّأة (filled)، False = بطاقة بيضاء عادية
-    progress_pct: float | None = None  # 0-100 — شريط تقدم أخضر (مثال: نسبة "تمت الخدمة")
+    progress_pct: float | None = None  # 0-100 — شريط تقدم (مثال: نسبة "تمت الخدمة")
     sub_line: str | None = None  # سطر فرعي صغير تحت القيمة (مثال: "N رقم اتصل أكثر من مرة")
+    value_color: str | None = None  # تجاوز لون القيمة الافتراضي (مثال: #5B21B6 لبطاقة "تمت الخدمة")
 
 
 def _sparkline_chart(df: pd.DataFrame) -> alt.Chart:
@@ -72,10 +73,11 @@ def render_kpi_row(cards: list[KPICardData]) -> None:
                         f"</div>"
                     )
                 sub_line_html = f'<div class="maz-kpi-subline">{card.sub_line}</div>' if card.sub_line else ""
+                value_style = f' style="color:{card.value_color};"' if card.value_color else ""
                 card_html = (
                     f'<div class="maz-kpi-inner"{title_attr}>'
                     f'<div class="maz-kpi-label">{icon_html}{card.label}</div>'
-                    f'<div class="maz-kpi-value">{card.value}</div>'
+                    f'<div class="maz-kpi-value"{value_style}>{card.value}</div>'
                     f"{_delta_html(card.delta_pct)}"
                     f"{progress_html}"
                     f"{sub_line_html}"

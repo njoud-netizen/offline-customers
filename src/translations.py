@@ -238,6 +238,26 @@ TRANSLATIONS = {
     "inbound_kpi_serviced": {"ar": "تمت الخدمة", "en": "Serviced"},
     "inbound_kpi_unique_numbers": {"ar": "أرقام فريدة", "en": "Unique numbers"},
     "inbound_kpi_unique_sub": {"ar": "{count} رقم اتصل أكثر من مرة", "en": "{count} numbers called more than once"},
+    "inbound_kpi_total_sub": {"ar": "كلها واردة", "en": "All inbound"},
+
+    # ==== منطقة الرفع المحسّنة (كل الصفحات) ====
+    "upload_drag_here": {"ar": "اسحب الملف هنا", "en": "Drag file here"},
+    "upload_chip_xlsx": {"ar": "XLSX", "en": "XLSX"},
+    "upload_chip_csv": {"ar": "CSV", "en": "CSV"},
+    "upload_chip_maxsize": {"ar": "حتى 200MB", "en": "Up to 200MB"},
+    "upload_auto_process_helper": {
+        "ar": "المعالجة تبدأ تلقائيًا بعد الرفع — ما تحتاج تضغط أي زر إضافي.",
+        "en": "Processing starts automatically after upload — no extra button needed.",
+    },
+    "upload_preview_toggle_help": {
+        "ar": "يعالج كل السجلات بغض النظر عن قاعدة dedup، ولا يسجّل أي نتيجة بها إطلاقًا — للاختبار/الاستعراض فقط.",
+        "en": "Processes all records regardless of the dedup database, and never writes any result to it — for testing/preview only.",
+    },
+
+    # ==== مؤشر خطوات Inbound Call ====
+    "inbound_step_upload_label": {"ar": "رفع الملف", "en": "Upload file"},
+    "inbound_step_process_label": {"ar": "معالجة تلقائية", "en": "Auto processing"},
+    "inbound_step_results_label": {"ar": "النتائج", "en": "Results"},
 
     "inbound_insights_title": {"ar": "أبرز المؤشرات", "en": "Top Insights"},
     "inbound_insight_top_company": {"ar": "أكثر شركة", "en": "Top company"},

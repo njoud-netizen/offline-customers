@@ -32,7 +32,10 @@ def status_badge_html(value: str) -> str:
     if not raw:
         return '<span class="maz-badge-pill maz-badge-other">—</span>'
     if raw.lower() == "serviced":
-        return f'<span class="maz-badge-pill maz-badge-serviced">{html.escape(raw)}</span>'
+        return (
+            f'<span class="maz-badge-pill maz-badge-serviced">'
+            f'<span class="maz-status-dot"></span>{html.escape(raw)}</span>'
+        )
     return f'<span class="maz-badge-pill maz-badge-other">{html.escape(raw)}</span>'
 
 

@@ -37,7 +37,7 @@ def build_sales_offline_combo_chart(df_offline: pd.DataFrame, lang: str):
             marker_color=theme.CHART_AXIS_PRIMARY,
             text=[f"{v:,.0f}" for v in sales_values],
             textposition="outside",
-            textfont=dict(color=theme.TEXT_PRIMARY, size=12),
+            textfont=dict(color=theme.TEXT_MUTED_DARK, size=12),
             hovertemplate="%{x}<br>" + t("chart_axis_sales", lang) + ": %{y:,.2f}<extra></extra>",
             # offsetgroup إلزامي هنا: بدونه Plotly لا يفصل بصريًا بين عمودَي كل شركة عند
             # استخدام محورين (secondary_y) — يتعامل معهما كأنهما "subplot" مختلف فيرسمهما
@@ -55,7 +55,7 @@ def build_sales_offline_combo_chart(df_offline: pd.DataFrame, lang: str):
             offsetgroup="offline_count",
             text=[f"{v:,.0f}" for v in count_values],
             textposition="outside",
-            textfont=dict(color=theme.TEXT_PRIMARY, size=12),
+            textfont=dict(color=theme.TEXT_MUTED_DARK, size=12),
             hovertemplate="%{x}<br>" + t("kpi_total_offline", lang) + ": %{y:,}<extra></extra>",
         ),
         secondary_y=True,
@@ -65,16 +65,17 @@ def build_sales_offline_combo_chart(df_offline: pd.DataFrame, lang: str):
         barmode="group",
         height=560,
         margin=dict(t=70, b=60, l=70, r=70),
-        plot_bgcolor=theme.SURFACE,
-        paper_bgcolor=theme.SURFACE,
-        font=dict(color=theme.TEXT_PRIMARY),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=theme.TEXT_MUTED_DARK, family=theme.FONT_STACK),
         # Legend أفقي أعلى منطقة الرسم تمامًا (y=1.02 يضعه فوق حدود الرسم مباشرة) —
         # نفس الحل المطلوب صراحةً لتفادي أي تراكب فوق أسماء الشركات على المحور الأفقي.
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         uniformtext_minsize=9,
         uniformtext_mode="hide",
     )
-    fig.update_xaxes(title_text=t("chart_axis_brand", lang), tickangle=-20, gridcolor=theme.BORDER, color=theme.TEXT_SECONDARY)
+    # شبكة أفقية فقط (لا gridlines على محور X) — حسب المواصفة.
+    fig.update_xaxes(title_text=t("chart_axis_brand", lang), tickangle=-20, showgrid=False, color=theme.TEXT_MUTED_DARK)
     # محور السلسلة اليسرى (المبيعات) بنفسجي، واليمنى (عدد العملاء) أزرق — نفس لون كل سلسلة.
     fig.update_yaxes(
         title_text=t("chart_axis_sales", lang), secondary_y=False,

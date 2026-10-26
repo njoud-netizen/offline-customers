@@ -58,20 +58,18 @@ def load_last_runs(output_dir: Path, limit: int = 10) -> pd.DataFrame:
 
 
 def render_last_runs_card(output_dir: Path, lang: str) -> None:
-    st.markdown('<div class="maz-card">', unsafe_allow_html=True)
-    st.markdown(f'<p class="maz-card-title">{t("last_runs_title", lang)}</p>', unsafe_allow_html=True)
-    st.markdown(f'<p class="maz-card-subtitle">{t("last_runs_subtitle", lang)}</p>', unsafe_allow_html=True)
+    with st.container(key="maz_card_last_runs"):
+        st.markdown(f'<p class="maz-card-title">{t("last_runs_title", lang)}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="maz-card-subtitle">{t("last_runs_subtitle", lang)}</p>', unsafe_allow_html=True)
 
-    df = load_last_runs(output_dir)
-    if df.empty:
-        render_empty_state(t("empty_no_runs_yet", lang))
-    else:
-        display_df = df.rename(
-            columns={
-                col: (t("last_runs_col_time", lang) if col == _TIME_COL_KEY else translate_summary_label(col, lang))
-                for col in df.columns
-            }
-        )
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        df = load_last_runs(output_dir)
+        if df.empty:
+            render_empty_state(t("empty_no_runs_yet", lang))
+        else:
+            display_df = df.rename(
+                columns={
+                    col: (t("last_runs_col_time", lang) if col == _TIME_COL_KEY else translate_summary_label(col, lang))
+                    for col in df.columns
+                }
+            )
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
