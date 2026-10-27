@@ -45,33 +45,22 @@ _COL_WIDTH_CLASS = {
 
 
 def _build_remark_cell(meta: dict, lang: str) -> tuple[str, bool]:
-    """يرجع (النص المعروض, هل هي رسالة نظام مميزة بدل سؤال عميل عادي). meta: _remark_meta
-    من inbound_pipeline.py — {"kind": "review"|"inquiry"|"", "review_flags": [...],
-    "summary_en", "summary_ar", "translation_ok"}. راجع inbound_pipeline.py للبنية الكاملة."""
-    if not isinstance(meta, dict):
+    """يرجع (النص المعروض, هل تحتاج تمييز بصري كرسالة تحتاج انتباه). meta: _remark_meta من
+    inbound_pipeline.py — {"has_summary", "summary_en_full", "summary_ar_full",
+    "translation_ok", "needs_attention"}. طلب صريح: النص المعروض هو استفسار العميل الفعلي
+    الكامل دائمًا بدون استثناء — ممنوع أي جملة بديلة عامة (لا "استفسار عام" ولا غيرها). فاضي
+    فقط لو ما فيه ملخص مكالمة أصلًا بملف Maqsam."""
+    if not isinstance(meta, dict) or not meta.get("has_summary"):
         return "", False
 
-    kind = meta.get("kind", "")
-    if kind == "review":
-        parts = []
-        for key, extra in meta.get("review_flags", []) or []:
-            if key == "complaint":
-                parts.append(t("inbound_remark_complaint", lang))
-            elif key == "invalid_phone":
-                parts.append(t("inbound_remark_invalid_phone", lang).format(reason=extra or ""))
-            elif key == "unresolved_brand":
-                parts.append(t("inbound_remark_unresolved_brand", lang).format(brand=extra or ""))
-        return " | ".join(parts), True
+    if lang == "ar" and meta.get("translation_ok", True):
+        text = str(meta.get("summary_ar_full", "")).strip()
+    else:
+        # الترجمة فشلت فعليًا (أو الواجهة إنجليزي أصلًا) -> الملخص الأصلي الإنجليزي كاملًا،
+        # بدون أي اقتطاع ولا جملة بديلة.
+        text = str(meta.get("summary_en_full", "")).strip()
 
-    if kind == "inquiry":
-        if lang == "ar":
-            if meta.get("translation_ok", True):
-                return str(meta.get("summary_ar", "")).strip(), False
-            return t("inbound_remark_generic_inquiry", "ar"), False
-        text = str(meta.get("summary_en", "")).strip()
-        return (text or t("inbound_remark_generic_inquiry", "en")), False
-
-    return "", False
+    return text, bool(meta.get("needs_attention"))
 
 
 def normalize_phone(raw: str) -> str:

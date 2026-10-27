@@ -842,21 +842,22 @@ def inject_theme(lang: str) -> None:
         table.maz-table tbody td[dir="ltr"], table.maz-table tbody td bdi {{ font-weight: 700; }}
         .maz-call-type {{ display: inline-flex; align-items: center; gap: 6px; }}
         .maz-call-type .material-symbols-outlined {{ color: {TEXT_MUTED}; font-size: 16px; }}
-        /* عمود الملاحظات بالجدول — حد أقصى سطرين ثم "..."، النص الكامل بـtitle (tooltip عند
-        التمرير). dir="auto" على العنصر نفسه يخلي كل ملاحظة تتبع اتجاه محتواها الفعلي، مع
+        /* عمود الملاحظات بالجدول — النص كامل دائمًا بدون أي قص/"..."، يلتف على أكثر من سطر
+        حسب الحاجة (طلب صريح). dir="auto" يخلي كل ملاحظة تتبع اتجاه محتواها الفعلي، مع
         text-align:start حتى يبدأ النص من أوله الصحيح (مو من آخره) بغض النظر عن الاتجاه المكتشف. */
         .maz-table-notes {{
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
+            display: block;
+            white-space: normal;
+            overflow-wrap: break-word;
+            word-break: break-word;
             text-align: start;
             color: {TEXT_MUTED_DARK};
             font-size: 14px;
-            line-height: 1.4;
+            line-height: 1.5;
         }}
-        /* رسائل النظام (مراجعة يدوية: شكوى/رقم غير صالح/براند غير محلول) — مميزة عن سؤال
-        العميل العادي بلون بنفسجي أغمق + أيقونة تنبيه صغيرة بدل اللون الرمادي الموحّد. */
+        /* رسائل تحتاج انتباه (شكوى محتملة/براند غير محلول) — مميزة عن سؤال العميل العادي
+        بلون بنفسجي أغمق + أيقونة تنبيه صغيرة، لكن النص المعروض يبقى استفسار العميل الفعلي
+        دائمًا (الأيقونة واللون تنبيه إضافي بس، مو بديل عن النص). */
         .maz-table-notes-wrap {{ display: flex; align-items: flex-start; gap: 4px; }}
         .maz-table-notes-icon {{
             color: {PRIMARY_ACTION}; font-size: 14px; line-height: 1.4; flex-shrink: 0; margin-top: 1px;

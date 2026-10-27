@@ -3,9 +3,16 @@
 الإنجليزي الأصلي بدل ما يكسر بقية المعالجة. فيه كاش بالذاكرة (نص -> (ترجمة, نجحت؟)) لتفادي
 ترجمة نفس النص أكثر من مرة بنفس التشغيلة، ومُشترك بين translate_to_arabic (القديمة، تُستخدم
 لعمود Remark بملف الإخراج/الشيت — سلوكها الظاهري لم يتغيّر إطلاقًا) وtranslate_to_arabic_status
-(جديدة، تُستخدم فقط بعرض لوحة Inbound Call لمعرفة صراحة متى فشلت الترجمة)."""
+(جديدة، تُستخدم فقط بعرض لوحة Inbound Call لمعرفة صراحة متى فشلت الترجمة).
+
+إعادة محاولة (طلب صريح): حتى محاولتين إضافيتين (3 محاولات إجمالًا) بفاصل متزايد قبل اعتبار
+الترجمة فاشلة فعليًا — يقلّل أثر TooManyRequests/StopIteration المؤقتة (مؤكَّدتان فعليًا
+بفحص حي على بيانات حقيقية — راجع inbound_pipeline.py)."""
+import time
 
 _cache: dict = {}  # text -> (translated_text, succeeded)
+_MAX_RETRIES = 2
+_RETRY_BASE_DELAY = 0.6
 
 
 def _translate_with_status(text: str) -> tuple[str, bool]:
@@ -15,15 +22,18 @@ def _translate_with_status(text: str) -> tuple[str, bool]:
     if text in _cache:
         return _cache[text]
 
-    try:
-        from deep_translator import MyMemoryTranslator
-        translated = MyMemoryTranslator(source="en-US", target="ar-SA").translate(text)
-        if translated and translated.strip():
-            result = (translated.strip(), True)
-        else:
-            result = (text, False)
-    except Exception:
-        result = (text, False)  # فشل الترجمة -> نرجع النص الإنجليزي الأصلي بدل كسر المعالجة
+    result = (text, False)
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            from deep_translator import MyMemoryTranslator
+            translated = MyMemoryTranslator(source="en-US", target="ar-SA").translate(text)
+            if translated and translated.strip():
+                result = (translated.strip(), True)
+                break
+        except Exception:
+            pass  # فشل الترجمة -> نرجع النص الإنجليزي الأصلي بدل كسر المعالجة (بعد المحاولات)
+        if attempt < _MAX_RETRIES:
+            time.sleep(_RETRY_BASE_DELAY * (attempt + 1))
 
     _cache[text] = result
     return result
