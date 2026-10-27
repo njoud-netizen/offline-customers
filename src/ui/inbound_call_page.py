@@ -152,20 +152,20 @@ def _reason_card_body(state: dict, lang: str) -> str:
     if not name:
         return '<div class="maz-insight-meta">—</div>'
     count = int(state["reason_counts"].get(name, 0))
-    # "أكثر شركة"/"كل الشركات" -> النسبة من الإجمالي الحقيقي لكل الشركات؛ شركة محددة -> النسبة
-    # من مكالمات تلك الشركة فقط (الطلب الصريح). بوضع "كل الشركات" company_scoped_df أصلًا
-    # يساوي df الكامل (company_filter فاضي)، فالدنمينيتور نفسه بالحالتين سيان هناك.
-    if state["company_choice"] in (COMPANY_MODE_TOP, COMPANY_MODE_ALL):
-        total = len(state["df"])
-        pct_key = "inbound_insight_of_total"
-    else:
-        total = len(state["company_scoped_df"])
-        pct_key = "inbound_insight_of_company_total"
+    company_choice = state["company_choice"]
+    # "كل الشركات" فقط -> نسبة من الإجمالي الحقيقي لكل الشركات (company_scoped_df يساوي df
+    # الكامل أصلًا هنا، لا فرق). "أكثر شركة" أو شركة محددة -> دائمًا من مكالمات تلك الشركة
+    # بالذات (المقام = company_scoped_df)، والنص يسمّيها صراحة بدل "الشركة" العامة.
+    total = len(state["company_scoped_df"])
     pct = (count / total * 100) if total else 0.0
-    meta = (
-        f'{t("inbound_insight_call_count", lang).format(count=count)} · '
-        f'{t(pct_key, lang).format(pct=f"{pct:.0f}")}'
-    )
+    if company_choice == COMPANY_MODE_ALL:
+        pct_text = t("inbound_insight_of_total", lang).format(pct=f"{pct:.0f}")
+    else:
+        company_name = state["top_company"] if company_choice == COMPANY_MODE_TOP else company_choice
+        pct_text = t("inbound_insight_of_named_company_total", lang).format(
+            pct=f"{pct:.0f}", company=_isolated_value(html.escape(company_name)),
+        )
+    meta = f'{t("inbound_insight_call_count", lang).format(count=count)} · {pct_text}'
     return f'<div class="maz-insight-value">{html.escape(name)}</div><div class="maz-insight-meta">{meta}</div>'
 
 
