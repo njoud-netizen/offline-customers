@@ -927,10 +927,37 @@ def inject_theme(lang: str) -> None:
         بلون بنفسجي أغمق + أيقونة تنبيه صغيرة، لكن النص المعروض يبقى استفسار العميل الفعلي
         دائمًا (الأيقونة واللون تنبيه إضافي بس، مو بديل عن النص). */
         .maz-table-notes-wrap {{ display: flex; align-items: flex-start; gap: 4px; }}
+        .maz-table-notes-body {{ flex: 1; min-width: 0; }}
         .maz-table-notes-icon {{
             color: {PRIMARY_ACTION}; font-size: 14px; line-height: 1.4; flex-shrink: 0; margin-top: 1px;
         }}
         .maz-table-notes-system {{ color: {PRIMARY_ACTION}; font-weight: 600; }}
+
+        /* طلب صريح: الملاحظة تظهر 3 أسطر بس بالعرض الافتراضي (line-clamp)، مع رابط صغير
+        "عرض المزيد" (details/summary أصلي — بدون أي JS) يفتح النص كامل عند الضغط. */
+        .maz-table-notes-clamp {{
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }}
+        .maz-notes-more {{ margin-top: 2px; }}
+        .maz-notes-more summary {{
+            cursor: pointer;
+            color: {PRIMARY_ACTION};
+            font-size: 0.75rem;
+            font-weight: 600;
+            list-style: none;
+        }}
+        .maz-notes-more summary::-webkit-details-marker {{ display: none; }}
+        .maz-notes-more summary::marker {{ content: ""; }}
+        .maz-notes-more[open] summary {{ margin-bottom: 4px; }}
+        .maz-table-notes-full {{
+            display: block;
+            white-space: normal;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }}
 
         /* ==== حالة فارغة ==== */
         .maz-empty-state {{

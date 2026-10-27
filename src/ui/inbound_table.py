@@ -76,6 +76,24 @@ def _build_remark_cell(meta: dict, lang: str, pending: list) -> tuple[str, bool,
     return text, needs_attention, False
 
 
+def _note_with_expand_html(note: str, lang: str, is_en_fallback: bool, css_class: str = "maz-table-notes") -> str:
+    """طلب صريح: معاينة محدودة 3 أسطر (line-clamp، CSS فقط) + رابط صغير "عرض المزيد" (عنصر
+    HTML أصلي <details>/<summary>، بلا أي JS) يفتح النص كامل عند الضغط. is_en_fallback: نص
+    إنجليزي غير مترجم بعد وسط واجهة عربية -> dir="ltr" + text-align:left صريح بالـstyle
+    (طلب صريح: يمنع ظهور علامات الترقيم بشكل معكوس عند بداية السطر، أقوى من الاعتماد على
+    dir وحده)."""
+    escaped = html.escape(note)
+    dir_style = ' dir="ltr" style="text-align:left;"' if is_en_fallback else ' dir="auto"'
+    more_label = html.escape(t("inbound_notes_show_more", lang))
+    return (
+        f'<span class="{css_class} maz-table-notes-clamp"{dir_style} title="{escaped}">{escaped}</span>'
+        f'<details class="maz-notes-more">'
+        f'<summary>{more_label}</summary>'
+        f'<span class="maz-table-notes-full"{dir_style}>{escaped}</span>'
+        f'</details>'
+    )
+
+
 def translate_pending_and_maybe_rerun(pending: list) -> None:
     """يُستدعى *بعد* رسم الجدول/النافذة (طلب صريح: لا يوقف عرضه أبدًا) — يترجم فعليًا (شبكة)
     كل نص لم يكن بالكاش وقت البناء. لو نجحت ترجمة جديدة واحدة على الأقل، يعاد تشغيل السكربت
@@ -374,10 +392,10 @@ def _repeat_callers_groups(filtered_df: pd.DataFrame) -> list[tuple[str, pd.Data
     return [(number, filtered_df[filtered_df["Number"].astype(str) == number]) for number in repeated.index]
 
 
-def _last_note_for_group(group: pd.DataFrame, lang: str, pending: list) -> str:
+def _last_note_for_group(group: pd.DataFrame, lang: str, pending: list) -> tuple[str, bool]:
     row = group.sort_values("Date").iloc[-1] if "Date" in group.columns else group.iloc[-1]
-    note, _, _ = _build_remark_cell(row.get("_remark_meta"), lang, pending)
-    return note.strip()
+    note, _, is_en_fallback = _build_remark_cell(row.get("_remark_meta"), lang, pending)
+    return note.strip(), is_en_fallback
 
 
 def _first_non_empty_company(group: pd.DataFrame) -> str:
@@ -406,10 +424,9 @@ def build_unclassified_table_html(df: pd.DataFrame, lang: str) -> tuple[str, lis
         note, is_system, is_en_fallback = _build_remark_cell(r.get("_remark_meta"), lang, pending)
         note = note.strip()
         if note:
-            escaped = html.escape(note)
             note_class = "maz-table-notes maz-table-notes-system" if is_system else "maz-table-notes"
-            note_dir = "ltr" if is_en_fallback else "auto"
-            note_cell = f'<td class="maz-col-remark"><span class="{note_class}" dir="{note_dir}">{escaped}</span></td>'
+            note_html = _note_with_expand_html(note, lang, is_en_fallback, note_class)
+            note_cell = f'<td class="maz-col-remark">{note_html}</td>'
         else:
             note_cell = '<td class="maz-col-remark"><span class="maz-table-dash">—</span></td>'
         rows_html.append(f"<tr>{number_cell}{company_cell}{note_cell}</tr>")
@@ -436,7 +453,7 @@ def build_repeat_callers_table_html(filtered_df: pd.DataFrame, lang: str) -> tup
     for number, group in _repeat_callers_groups(filtered_df):
         count = len(group)
         company = _first_non_empty_company(group)
-        note = _last_note_for_group(group, lang, pending)
+        note, is_en_fallback = _last_note_for_group(group, lang, pending)
         number_cell = (
             f'<td class="maz-col-number"><bdi dir="ltr" style="unicode-bidi:isolate;">'
             f'{html.escape(format_phone_display(number))}</bdi></td>'
@@ -444,7 +461,8 @@ def build_repeat_callers_table_html(filtered_df: pd.DataFrame, lang: str) -> tup
         count_cell = f'<td dir="ltr">{repeat_badge_html(count)}</td>'
         company_cell = f'<td class="maz-col-company">{company_badge_html(company)}</td>'
         if note:
-            note_cell = f'<td class="maz-col-remark"><span class="maz-table-notes" dir="auto">{html.escape(note)}</span></td>'
+            note_html = _note_with_expand_html(note, lang, is_en_fallback)
+            note_cell = f'<td class="maz-col-remark">{note_html}</td>'
         else:
             note_cell = '<td class="maz-col-remark"><span class="maz-table-dash">—</span></td>'
         rows_html.append(f"<tr>{number_cell}{count_cell}{company_cell}{note_cell}</tr>")
@@ -463,11 +481,12 @@ def build_repeat_callers_csv(filtered_df: pd.DataFrame, lang: str) -> tuple[byte
     pending: list = []
     records = []
     for number, group in _repeat_callers_groups(filtered_df):
+        note, _ = _last_note_for_group(group, lang, pending)
         records.append({
             _col_label("Number", lang): format_phone_display(number),
             _col_label("call_count", lang): len(group),
             _col_label("company", lang): _first_non_empty_company(group),
-            t("inbound_dialog_col_last_note", lang): _last_note_for_group(group, lang, pending),
+            t("inbound_dialog_col_last_note", lang): note,
         })
     csv_bytes = pd.DataFrame(records).to_csv(index=False).encode("utf-8-sig")
     return csv_bytes, pending
@@ -587,21 +606,20 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
                 elif col == "Remark":
                     note, is_system, is_en_fallback = _build_remark_cell(r.get("_remark_meta"), lang, pending)
                     note = note.strip()
-                    note_dir = "ltr" if is_en_fallback else "auto"
                     if note:
-                        escaped = html.escape(note)
                         if is_system:
+                            note_html = _note_with_expand_html(
+                                note, lang, is_en_fallback, "maz-table-notes maz-table-notes-system",
+                            )
                             cells.append(
                                 f'<td class="{col_class}"><span class="maz-table-notes-wrap">'
                                 f'<span class="material-symbols-outlined maz-table-notes-icon">warning</span>'
-                                f'<span class="maz-table-notes maz-table-notes-system" dir="{note_dir}" '
-                                f'title="{escaped}">{escaped}</span></span></td>'
+                                f'<span class="maz-table-notes-body">{note_html}</span>'
+                                f'</span></td>'
                             )
                         else:
-                            cells.append(
-                                f'<td class="{col_class}"><span class="maz-table-notes" dir="{note_dir}" '
-                                f'title="{escaped}">{escaped}</span></td>'
-                            )
+                            note_html = _note_with_expand_html(note, lang, is_en_fallback)
+                            cells.append(f'<td class="{col_class}">{note_html}</td>')
                     else:
                         cells.append(f'<td class="{col_class}"><span class="maz-table-dash">—</span></td>')
                 elif col == "call_count":

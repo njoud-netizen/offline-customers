@@ -248,6 +248,7 @@ TRANSLATIONS = {
     "inbound_dialog_repeat_title": {"ar": "أرقام اتصلت أكثر من مرة ({count})", "en": "Numbers that called more than once ({count})"},
     "inbound_dialog_col_last_note": {"ar": "آخر ملاحظة", "en": "Last note"},
     "inbound_dialog_empty": {"ar": "لا توجد نتائج حسب الفلاتر الحالية.", "en": "No results match the current filters."},
+    "inbound_notes_show_more": {"ar": "عرض المزيد", "en": "Show more"},
 
     # ==== بحث/فلتر الشركة بالهيدر ====
     "inbound_header_search_label": {"ar": "بحث برقم الجوال", "en": "Search by phone number"},
