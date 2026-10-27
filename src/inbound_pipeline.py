@@ -165,12 +165,6 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
             review_reasons.append(f"رقم غير صالح ({r.customer_phone.reason})")
         if r.brand_raw and not r.canonical_company:
             review_reasons.append(f"براند غير محلول من maqsam_line_aliases: '{r.brand_raw}'")
-        if details_raw == _DETAILS_OTHER:
-            suggested = fields.get("details_suggested", "")
-            msg = "Details لم يطابق القائمة الحالية"
-            if suggested:
-                msg += f" (مقترح: {suggested})"
-            review_reasons.append(msg)
 
         number_value = r.customer_phone.normalized or r.customer_phone.raw
 
@@ -184,6 +178,12 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
                 # يرجع النص الإنجليزي الأصلي بدل ما يوقف المعالجة.
                 arabic_summary = translate_to_arabic(r.call_summary[:450])
                 remark += f" || ملخص المكالمة: {arabic_summary[:400]}"
+        elif not details_literal and r.call_summary:
+            # طلب صريح: خانة Details الفاضية (ما له تصنيف بالقائمة) يرافقها سؤال العميل باختصار
+            # بعمود الملاحظات المجاور — ترجمة مجانية best-effort لأول جزء من الملخص الأصلي (مو
+            # تلخيص ذكي حقيقي؛ أقرب تقريب عملي متاح بوضع rules بدون أي تكلفة API).
+            short_note = translate_to_arabic(r.call_summary[:200])
+            remark = f"استفسار العميل: {short_note[:150]}"
 
         row = {
             "Region": region_literal,

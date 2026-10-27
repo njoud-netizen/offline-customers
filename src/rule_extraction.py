@@ -85,14 +85,10 @@ def is_vendor_service_pitch(summary: str) -> bool:
     return any(signal in text_lower for signal in _VENDOR_PITCH_SIGNALS)
 
 
-# قاعدة عمل خاصة (طلب المستخدم): مكالمة عن وظيفة/توظيف/سيرة ذاتية/تقديم على شغل تُصنَّف
-# "Job Email" مباشرة دائمًا — أولوية فوق أي تصنيف آخر، وممنوع تُكتب القيمة الحرفية "job" نهائيًا
-# (موجودة بالقائمة المنسدلة الحقيقية كقيمة منفصلة خاطئة، يجب تفاديها دومًا لصالح "Job Email").
-_JOB_APPLICATION_SIGNALS = [
-    "job", "employment", "hiring", "vacancy", "resume", "cv", "apply for a job",
-    "job application", "job opportunity", "job opening", "career opportunity",
-    "وظيفة", "توظيف", "سيرة ذاتية", "تقديم على وظيفة", "تقديم على شغل",
-]
+# قاعدة عمل خاصة (طلب المستخدم، القائمة النهائية): job/jobs/توظيف/سيرة ذاتية تُصنَّف "Job Email"
+# مباشرة دائمًا — أولوية فوق أي تصنيف آخر، وممنوع تُكتب القيمة الحرفية "job" نهائيًا (موجودة
+# بالقائمة المنسدلة الحقيقية كقيمة منفصلة خاطئة، يجب تفاديها دومًا لصالح "Job Email").
+_JOB_APPLICATION_SIGNALS = ["job", "jobs", "توظيف", "سيرة ذاتية"]
 
 
 def is_job_application_inquiry(summary: str) -> bool:

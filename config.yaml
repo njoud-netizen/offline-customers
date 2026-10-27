@@ -161,7 +161,7 @@ brand_dictionary:
 # المنسدلة الحية بالشيت الحقيقي (src/sheet_dropdowns.py) — لو ما طابق حتى بعدها، تبقى الخانة
 # فاضية (لا اختراع قيم). المفتاح = الاسم الكنسي المستهدف، القيمة = صيغ بديلة تؤدي له.
 city_aliases:
-  Ehssa: ["Ahsa", "Al Ahsa", "Al-Ahsa", "Hasa", "Al Hasa", "Hofuf", "الأحساء"]
+  Ehssa: ["Ahsa", "Al Ahsa", "Al-Ahsa", "Hasa", "Hofuf", "الأحساء"]
   Jazan: ["Jizan", "Gizan", "جازان"]
   Skaka: ["Sakaka", "Al Jouf", "سكاكا"]
   "khamis mushait": ["Khamis Mushayt", "Khamis", "خميس مشيط"]
