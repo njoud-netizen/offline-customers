@@ -287,6 +287,10 @@ TRANSLATIONS = {
     "inbound_select_reason_bottom": {"ar": "أقل استفسار", "en": "Least inquiry"},
     "inbound_select_reason_all": {"ar": "كل الاستفسارات", "en": "All inquiries"},
     "inbound_number_option_format": {"ar": "{number} ({count} مرات)", "en": "{number} ({count} times)"},
+    "inbound_unmatched_values_warning": {
+        "ar": "قيم غير موجودة في القوائم: {items}",
+        "en": "Values not found in the dropdown lists: {items}",
+    },
     "inbound_last_call_label": {"ar": "آخر اتصال:", "en": "Last call:"},
     "inbound_insight_company_label": {"ar": "الشركة:", "en": "Company:"},
     "inbound_insight_reason_label": {"ar": "السبب:", "en": "Reason:"},

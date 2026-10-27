@@ -1,17 +1,26 @@
 """خط أنابيب صفحة Inbound Call: تصدير Maqsam -> صفوف بنفس أعمدة شيت المزروع بالضبط + قائمة
-تحتاج مراجعة يدوية. مسار مستقل تمامًا عن pipeline.py/dedup.sqlite3 الحالي — لا تداخل بينهما."""
+تحتاج مراجعة يدوية. مسار مستقل تمامًا عن pipeline.py/dedup.sqlite3 الحالي — لا تداخل بينهما.
+
+القاعدة الأساسية (طلب صريح): يُكتب فقط قيمة موجودة حرفيًا بالقائمة المنسدلة الحقيقية لكل عمود
+(company/Region/Details) — القوائم تُقرأ حية من الشيت نفسه (sheet_dropdowns.py)، لا تُكتب يدويًا
+بالكود. أي قيمة مستخرجة لا تطابق القائمة (ولا أي ALIAS معروف) تبقى فاضية، ولا تُخترع أبدًا."""
 import time
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from .call_extraction import extract_call_fields
-from .config import resolve_path
+from .config import credentials_path, resolve_path
 from .maqsam_import import extract_inbound_records, load_maqsam_export
 from .report import write_inbound_report
-from .rule_extraction import extract_call_fields_rule_based
+from .rule_extraction import extract_call_fields_rule_based, is_job_application_inquiry
+from .sheet_dropdowns import fetch_dropdown_lists
+from .sheet_values import match_literal
 from .translate_helper import translate_to_arabic
 
 _DETAILS_OTHER = "Other"
+# قيم ممنوعة نهائيًا بعمود Details (طلب صريح) — تُستبعد من كتالوج المطابقة بالكامل، فلا يمكن
+# لأي مصنّف (rules أو Claude) اختيارها أصلًا، بغض النظر عن وجودها بالقائمة المنسدلة الحقيقية.
+_DETAILS_BANNED = {"service", "website", "job"}
 
 
 @dataclass
@@ -21,6 +30,7 @@ class InboundImportResult:
     summary: dict = field(default_factory=dict)
     output_path: "str | None" = None
     highlight_flags: list = field(default_factory=list)  # بنفس طول/ترتيب rows — True = شكوى محتملة
+    unmatched_values: list = field(default_factory=list)  # {"column","raw_value"} — خانات تُركت فاضية لعدم تطابق القائمة
 
 
 def _format_date(dt) -> str:
@@ -31,14 +41,50 @@ def _resolve_output_dir(cfg: dict) -> str:
     return str(resolve_path(cfg, cfg["paths"]["output_dir"]))
 
 
+def _clean_details_catalog(raw_values: list[str]) -> list[str]:
+    """كتالوج نظيف (بدون تكرار/مسافات زائدة/قيم ممنوعة) يُستخدم لمطابقة نص الملخص — القيمة
+    النهائية المكتوبة تُطابَق لاحقًا ضد القائمة الحية الخام لاستعادة أي تنسيق فعلي بالشيت."""
+    seen = set()
+    cleaned = []
+    for v in raw_values:
+        clean = str(v).strip()
+        key = clean.lower()
+        if not clean or key in _DETAILS_BANNED or key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(clean)
+    return cleaned
+
+
 def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], None]] = None) -> InboundImportResult:
     def progress(msg: str) -> None:
         if on_progress:
             on_progress(msg)
 
-    columns = cfg["google_sheets"]["columns"]
+    google_cfg = cfg["google_sheets"]
+    columns = google_cfg["columns"]
     brand_dictionary = cfg["brand_dictionary"]
     call_import_cfg = cfg["call_import"]
+    city_aliases = cfg.get("city_aliases", {})
+    company_aliases = {name: c.get("sheet_aliases", []) for name, c in brand_dictionary.items()}
+
+    progress("قراءة القوائم المنسدلة الحية من شيت المزروع (company/Region/Details)...")
+    try:
+        live_lists = fetch_dropdown_lists(
+            credentials_path=str(credentials_path(cfg)),
+            spreadsheet_id=google_cfg["spreadsheet_id"],
+            tabs_cfg=google_cfg["tabs"],
+            column_names=["company", "Region", "Details"],
+        )
+    except Exception as e:
+        progress(f"[تحذير] تعذّر قراءة القوائم المنسدلة الحية ({e}) — سيُستخدم احتياطي محدود "
+                 f"(company فقط من config.yaml، و Region/Details فاضية غالبًا).")
+        live_lists = {}
+
+    company_values = live_lists.get("company") or list(brand_dictionary.keys())
+    region_values = live_lists.get("Region") or []
+    details_values_raw = live_lists.get("Details") or call_import_cfg.get("details_catalog", [])
+    details_catalog_clean = _clean_details_catalog(details_values_raw)
 
     progress("قراءة ملف تصدير Maqsam...")
     t0 = time.perf_counter()
@@ -52,7 +98,7 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
     if extraction_mode == "claude":
         extracted = extract_call_fields(
             records,
-            details_catalog=call_import_cfg["details_catalog"],
+            details_catalog=details_catalog_clean,
             model=call_import_cfg["anthropic_model"],
             batch_size=call_import_cfg["batch_size"],
             on_progress=progress,
@@ -60,7 +106,7 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
     else:
         extracted = extract_call_fields_rule_based(
             records,
-            details_catalog=call_import_cfg["details_catalog"],
+            details_catalog=details_catalog_clean,
             on_progress=progress,
         )
     progress(f"انتهى الاستخراج. (استغرق {time.perf_counter() - t0:.2f} ثانية)")
@@ -71,15 +117,46 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
     rows_with_details = 0
     highlight_flags = []  # نفس طول rows — True = شكوى محتملة لوزارة التجارة -> يُلوَّن أحمر بالإكسل
     complaint_count = 0
+    unmatched_values = []  # {"column","raw_value"} لكل خانة تُركت فاضية لعدم وجودها بالقائمة الحقيقية
 
     for r in records:
         fields = extracted.get(r.call_id, {})
         name = fields.get("customer_name", "")
-        city = fields.get("city", "")
-        details = fields.get("details", "")
+        city_raw = fields.get("city", "")
+        details_raw = fields.get("details", "")
         is_complaint = bool(fields.get("flag_commerce_complaint", False))
         if is_complaint:
             complaint_count += 1
+
+        # فرض "Job Email" فورًا لو المكالمة عن وظيفة/توظيف — أولوية فوق أي تصنيف آخر (نفس منطق
+        # Advertisement/vendor-pitch)، يمنع "job" الحرفية (قيمة خاطئة منفصلة بالقائمة الحقيقية)
+        # من الوصول للشيت نهائيًا — القيمة المكتوبة دائمًا "Job Email" أو فاضية.
+        if r.call_summary and is_job_application_inquiry(r.call_summary) and "Job Email" in details_catalog_clean:
+            details_raw = "Job Email"
+
+        # مطابقة نهائية ضد القائمة المنسدلة الحية — القيمة المكتوبة حرفيًا كما بالشيت الحقيقي
+        # (حتى لو فيها مسافات زائدة)، وإلا فاضية. "Other" = لم يطابق المصنّف أي قيمة من الأساس.
+        details_literal = ""
+        if details_raw and details_raw != _DETAILS_OTHER:
+            details_literal = match_literal(details_raw, details_values_raw)
+            if not details_literal:
+                unmatched_values.append({"column": "Details", "raw_value": details_raw})
+        if details_literal:
+            rows_with_details += 1
+
+        company_literal = ""
+        if r.canonical_company:
+            company_literal = match_literal(r.canonical_company, company_values, aliases=company_aliases)
+            if company_literal:
+                resolved_companies.add(company_literal)
+            else:
+                unmatched_values.append({"column": "company", "raw_value": r.canonical_company})
+
+        region_literal = ""
+        if city_raw:
+            region_literal = match_literal(city_raw, region_values, aliases=city_aliases)
+            if not region_literal:
+                unmatched_values.append({"column": "Region", "raw_value": city_raw})
 
         review_reasons = []
         if is_complaint:
@@ -88,21 +165,12 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
             review_reasons.append(f"رقم غير صالح ({r.customer_phone.reason})")
         if r.brand_raw and not r.canonical_company:
             review_reasons.append(f"براند غير محلول من maqsam_line_aliases: '{r.brand_raw}'")
-        if details == _DETAILS_OTHER:
+        if details_raw == _DETAILS_OTHER:
             suggested = fields.get("details_suggested", "")
             msg = "Details لم يطابق القائمة الحالية"
             if suggested:
                 msg += f" (مقترح: {suggested})"
             review_reasons.append(msg)
-
-        # طلب المستخدم: "Other" لا تُكتب حرفيًا بعمود Details بالملف النهائي — تُترك فاضية،
-        # والتنبيه (سبب المراجعة أعلاه) هو اللي يوضّح إنها تحتاج مراجعة يدوية بدلها.
-        details_display = "" if details == _DETAILS_OTHER else details
-        if details_display:
-            rows_with_details += 1
-
-        if r.canonical_company:
-            resolved_companies.add(r.canonical_company)
 
         number_value = r.customer_phone.normalized or r.customer_phone.raw
 
@@ -118,6 +186,7 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
                 remark += f" || ملخص المكالمة: {arabic_summary[:400]}"
 
         row = {
+            "Region": region_literal,
             "Name": name,
             "Number": number_value,
             "Inbound calls/out bound calls": "Inbound",
@@ -125,15 +194,18 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
             "WhatsApp&Calls": "",
             "Social Media": "",
             "Subject": "",
-            "Details": details_display,
+            "Details": details_literal,
             "Status": "",
             "Date": _format_date(r.created),
-            "company": r.canonical_company or "",
+            "company": company_literal,
             "Satisfied/or not": "",
             "How did you hear about us": "",
             "Remark": remark,
             "Agent": r.agent,
-            "Show Room": city,
+            # Show Room بالشيت الحقيقي قائمة فروع دقيقة جدًا (مثال: "BQ Riyadh - Rowdah") لا علاقة
+            # لها بالمدينة العامة — لا منطق استخراج حاليًا يحدد الفرع الدقيق، فتبقى فاضية دومًا
+            # بدل كتابة مدينة عامة فيها (كانت تُكتب هنا سابقًا بالغلط، وهذا سبب المثلث الأحمر).
+            "Show Room": "",
         }
         rows.append({col: row.get(col, "") for col in columns})  # ترتيب حرفي مضمون لملف الإخراج
         highlight_flags.append(is_complaint)
@@ -154,6 +226,7 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
         "براندات تم حلّها": len(resolved_companies),
         "صفوف تحتاج مراجعة يدوية": len(needs_review),
         "شكاوى وزارة التجارة المحتملة": complaint_count,
+        "خانات لم تطابق أي قائمة منسدلة (تُركت فاضية)": len(unmatched_values),
     }
 
     progress("كتابة ملف الإخراج (Excel)...")
@@ -162,4 +235,5 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
     return InboundImportResult(
         rows=rows, needs_review=needs_review, summary=summary,
         output_path=output_path, highlight_flags=highlight_flags,
+        unmatched_values=unmatched_values,
     )

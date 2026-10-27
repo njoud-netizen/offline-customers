@@ -321,6 +321,12 @@ def inbound_call_page() -> None:
         with step_box.container():
             render_step_indicator("results", step_labels, steps=_INBOUND_STEPS)
 
+        if result.unmatched_values:
+            items = ", ".join(
+                f'{u["column"]}: {u["raw_value"]}' for u in result.unmatched_values
+            )
+            st.warning(t("inbound_unmatched_values_warning", lang).format(items=items))
+
         if not result.rows:
             st.success(t("inbound_success_processed", lang))
             render_empty_state(t("inbound_warning_no_rows", lang))

@@ -18,8 +18,9 @@ google_sheets:
   sales_data_tab:
     name: "Sales Data"
     gid: 0
-  # ترتيب الأعمدة كما هو فعليًا في كل تبويب
+  # ترتيب الأعمدة كما هو فعليًا في كل تبويب — Region أول عمود فعليًا بالشيت الحقيقي (قبل Name)
   columns:
+    - Region
     - Name
     - Number
     - Inbound calls/out bound calls
@@ -154,6 +155,25 @@ brand_dictionary:
     invoice_codes: []
     sheet_aliases: ["Trendyol"]
     maqsam_line_aliases: ["Trendyol"]  # افتراضي غير مؤكد
+
+# ALIASES المدن (صفحة Inbound Call فقط): أي اسم مدينة مكتوب بصيغة مختلفة (عربي/إنجليزي) بنص
+# المكالمة يتحول لاسم المدينة الكنسي هنا، ثم يُطابَق هذا الاسم الكنسي ضد قائمة عمود Region
+# المنسدلة الحية بالشيت الحقيقي (src/sheet_dropdowns.py) — لو ما طابق حتى بعدها، تبقى الخانة
+# فاضية (لا اختراع قيم). المفتاح = الاسم الكنسي المستهدف، القيمة = صيغ بديلة تؤدي له.
+city_aliases:
+  Ehssa: ["Ahsa", "Al Ahsa", "Al-Ahsa", "Hasa", "Al Hasa", "Hofuf", "الأحساء"]
+  Jazan: ["Jizan", "Gizan", "جازان"]
+  Skaka: ["Sakaka", "Al Jouf", "سكاكا"]
+  "khamis mushait": ["Khamis Mushayt", "Khamis", "خميس مشيط"]
+  Makkah: ["Mecca", "Makka", "مكة"]
+  Madinah: ["Medina", "Madina", "Al Madinah", "المدينة"]
+  Khobar: ["Al Khobar", "الخبر"]
+  Qassim: ["Al Qassim", "Buraidah", "القصيم"]
+  Kharj: ["Al Kharj", "الخرج"]
+  Qatif: ["Al Qatif", "القطيف"]
+  "Hafar Al Batin": ["Hafr Al Batin", "حفر الباطن"]
+  "Majma'ah": ["Majmaah", "المجمعة"]
+  UAE: ["Dubai", "Abu Dhabi", "Emirates", "الإمارات"]
 
 # إعدادات صفحة "Inbound Call" (استيراد تصدير Maqsam وتعبية شيت المزروع تلقائيًا من Call Summary).
 call_import:
