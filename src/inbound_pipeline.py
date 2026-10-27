@@ -74,6 +74,7 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
     keyword_classifiers = call_import_cfg.get("keyword_classifiers", {})
     agent_signals = call_import_cfg.get("agent_sentence_signals", [])
     no_request_signals = call_import_cfg.get("no_customer_request_signals", [])
+    fallback_keyword_classifiers = call_import_cfg.get("fallback_keyword_classifiers", {})
 
     progress("قراءة القوائم المنسدلة الحية من شيت المزروع (company/Region/Details)...")
     try:
@@ -120,6 +121,7 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
             keyword_classifiers=keyword_classifiers,
             agent_signals=agent_signals,
             no_request_signals=no_request_signals,
+            fallback_keyword_classifiers=fallback_keyword_classifiers,
             on_progress=progress,
         )
     progress(f"انتهى الاستخراج. (استغرق {time.perf_counter() - t0:.2f} ثانية)")

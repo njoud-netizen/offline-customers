@@ -70,13 +70,17 @@ def _tokenize(text: str) -> set:
 def classify_by_keywords(customer_text: str, classifiers: dict) -> "str | None":
     """يرجع اسم أول تصنيف (حسب ترتيب ظهور مفاتيح classifiers) إحدى كلماته المفتاحية ظهرت
     بـcustomer_text (نص العميل فقط — بعد استبعاد كلام الموظف عبر extract_customer_text أدناه)،
-    أو None لو ما طابق أي تصنيف."""
+    أو None لو ما طابق أي تصنيف. مطابقة بحدود كلمة (\\b) وليس substring خام — مؤكَّد فعليًا إن
+    substring الخام يطابق بالغلط اسم براندات الشركة نفسها (مثل "BedQuarterKSA"/"BedHouse"
+    تحتوي "bed" كجزء من كلمة واحدة متلاصقة بدون مسافة) عند فحص كلمة مفتاحية عامة قصيرة مثل
+    "bed"؛ حدود الكلمة تمنع هذا بينما تبقي المطابقة الصحيحة لذكرها كـكلمة مستقلة فعلية."""
     if not customer_text or not classifiers:
         return None
     text_lower = customer_text.lower()
     for target, keywords in classifiers.items():
         for kw in keywords:
-            if str(kw).lower() in text_lower:
+            kw_lower = str(kw).lower()
+            if re.search(r"\b" + re.escape(kw_lower) + r"\b", text_lower):
                 return target
     return None
 
@@ -299,6 +303,7 @@ def extract_call_fields_rule_based(
     keyword_classifiers: "dict | None" = None,
     agent_signals: "list | None" = None,
     no_request_signals: "list | None" = None,
+    fallback_keyword_classifiers: "dict | None" = None,
     on_progress=None,
 ) -> dict:
     """نفس شكل إرجاع extract_call_fields بـ call_extraction.py (Claude) تمامًا، بدون أي استدعاء API.
@@ -308,7 +313,11 @@ def extract_call_fields_rule_based(
     1) is_no_customer_request -> Details فاضية (العميل ما طلب شي أصلًا).
     2) classify_by_keywords (Advertisement/Job Email/Working Hours/أي تصنيف جديد بـconfig.yaml)
        — على نص العميل فقط (بعد استبعاد جمل الموظف/الوكيل عبر extract_customer_text).
-    3) classify_details العام (مطابقة الكتالوج الكاملة) — fallback، على نص العميل فقط كذلك.
+    3) classify_details العام (مطابقة الكتالوج الكاملة بأسماء المنتجات الدقيقة — "Tempur Pillow"،
+       "Medical Mattresses"...) — على نص العميل فقط كذلك.
+    4) fallback_keyword_classifiers (طلب صريح — "Beds" مثلًا): يُفحص *فقط* لو classify_details
+       ما طابق أي اسم منتج محدد (نتيجته "Other" أو فاضية) — يضمن إن ذِكر منتج محدد بالاسم
+       (مرتبة/مخدة...) يفوز دائمًا على تصنيف عام مثل "Beds"، لا العكس.
     """
     log = on_progress or print
     results = {}
@@ -316,6 +325,7 @@ def extract_call_fields_rule_based(
     keyword_classifiers = keyword_classifiers or {}
     agent_signals = agent_signals or []
     no_request_signals = no_request_signals or []
+    fallback_keyword_classifiers = fallback_keyword_classifiers or {}
 
     for r in records:
         summary = r.call_summary
@@ -335,6 +345,10 @@ def extract_call_fields_rule_based(
                 details_priority = True
             else:
                 details = classify_details(customer_text, details_catalog)
+                if details in (_DETAILS_OTHER, ""):
+                    fallback_target = classify_by_keywords(customer_text, fallback_keyword_classifiers)
+                    if fallback_target and fallback_target in details_catalog:
+                        details = fallback_target
 
         city = extract_city(summary)
         if not city:
