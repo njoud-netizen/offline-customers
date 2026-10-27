@@ -114,6 +114,87 @@ def is_commerce_complaint(summary: str) -> bool:
     return any(signal in text_lower for signal in _COMMERCE_COMPLAINT_SIGNALS)
 
 
+# قاعدة عمل خاصة (طلب المستخدم، الملفات الجديدة فقط — بدون أي تعديل على صفوف قديمة): استفسار
+# عن موظف — ثلاث حالات بالأولوية: (1) فرع مذكور وموجود بالكتالوج الحي -> اسم الفرع نفسه حرفيًا
+# (مو "Employee"). (2) فرع مذكور وغير موجود بالكتالوج -> "Branches". (3) بدون ذكر أي فرع ->
+# "Employee" كما هي بالقائمة. أسماء الفروع قد تُذكر بالعربي بالملخص (مثال: "الياسمين" = فرع
+# الرياض) — _BRANCH_CITY_ALIASES تربطها باسم المدينة الإنجليزي المطابق لاسم الفرع بالكتالوج.
+_EMPLOYEE_SIGNALS = ["employee", "staff member", "staff", "موظف"]
+
+_BRANCH_CITY_ALIASES = {
+    "الرياض": "riyadh", "الياسمين": "riyadh", "اليا سمين": "riyadh",
+    "جدة": "jeddah", "جده": "jeddah",
+    "الخبر": "khobar",
+    "خميس مشيط": "khamis mushait", "خميس": "khamis mushait",
+    "القصيم": "qassim", "بريدة": "qassim", "بريده": "qassim",
+    "الأحساء": "ahsa", "الاحساء": "ahsa", "الهفوف": "ahsa",
+    "المدينة المنورة": "medina", "المدينة": "medina",
+    "الطائف": "taif",
+    "مكة المكرمة": "mecca", "مكة": "mecca",
+    "جازان": "jizan", "جيزان": "jizan",
+    "تبوك": "tabuk",
+    "القطيف": "qatif",
+    "الدمام": "dammam",
+    # صيغ إنجليزية بديلة شائعة تختلف عن تسمية الكتالوج نفسه
+    "makkah": "mecca", "al khobar": "khobar", "madinah": "medina",
+    "al madinah": "medina", "jazan": "jizan", "al ahsa": "ahsa", "al-ahsa": "ahsa",
+}
+
+_BRANCH_CATALOG_PATTERN = re.compile(r"^(.+?)\s+branche?s?$|^branche?s?\s+(.+)$", re.IGNORECASE)
+_BRANCH_WORD_RE = re.compile(r"\bbranch(?:es)?\b", re.IGNORECASE)
+
+
+def is_employee_inquiry(summary: str) -> bool:
+    text_lower = summary.lower()
+    return any(signal in text_lower for signal in _EMPLOYEE_SIGNALS)
+
+
+def _branch_catalog_by_city(details_catalog: list[str]) -> dict:
+    """{اسم المدينة (lower): قيمة الكتالوج الحرفية} لكل قيمة بصيغة '<مدينة> Branche' أو
+    'Branch <مدينة>' — تُبنى ديناميكيًا من الكتالوج الفعلي المُمرَّر (حي من الشيت)، بدون أي
+    قائمة مدن مكتوبة يدويًا هنا."""
+    result = {}
+    for entry in details_catalog:
+        m = _BRANCH_CATALOG_PATTERN.match(entry.strip())
+        if not m:
+            continue
+        city = (m.group(1) or m.group(2) or "").strip().lower()
+        if city:
+            result[city] = entry
+    return result
+
+
+def resolve_employee_details(summary: str, details_catalog: list[str]) -> "str | None":
+    """يرجع None لو المكالمة مو عن موظف أصلًا (classify_details العادي يكمل كالمعتاد). غير
+    كذا يرجع القيمة النهائية حسب القاعدة الثلاثية أعلاه."""
+    if not is_employee_inquiry(summary):
+        return None
+
+    branch_by_city = _branch_catalog_by_city(details_catalog)
+    summary_lower = summary.lower()
+
+    mentioned_city = None
+    for city in branch_by_city:
+        if re.search(r"\b" + re.escape(city) + r"\b", summary_lower):
+            mentioned_city = city
+            break
+    if mentioned_city is None:
+        for term, city in _BRANCH_CITY_ALIASES.items():
+            if term in summary_lower:
+                mentioned_city = city
+                break
+
+    if mentioned_city is not None:
+        return branch_by_city.get(mentioned_city) or ("Branches" if "Branches" in details_catalog else None)
+
+    # فرع مذكور لكن مدينته غير معروفة/غير موجودة بالكتالوج (مثال: "Dubai branch") — ما نقدر
+    # نحدد اسمه الحرفي، لكنه لسه "فرع مذكور" حسب القاعدة -> "Branches" العامة، مو "Employee".
+    if _BRANCH_WORD_RE.search(summary) or "فرع" in summary:
+        return "Branches" if "Branches" in details_catalog else None
+
+    return "Employee" if "Employee" in details_catalog else None
+
+
 # قاعدة عمل خاصة (طلب المستخدم): استفسار عام عن "مراتب/مرتبة" بدون تحديد نوع/موديل معيّن
 # (مثل Getha، Eclipse، Kluft...) يُصنَّف افتراضيًا "Medical Mattresses price" بدل Other — هذا
 # fallback فقط يُطبَّق لو ما طابق أي قيمة أدق بالقائمة أولًا.

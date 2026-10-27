@@ -12,7 +12,11 @@ from .call_extraction import extract_call_fields
 from .config import credentials_path, resolve_path
 from .maqsam_import import extract_inbound_records, load_maqsam_export
 from .report import write_inbound_report
-from .rule_extraction import extract_call_fields_rule_based, is_job_application_inquiry
+from .rule_extraction import (
+    extract_call_fields_rule_based,
+    is_job_application_inquiry,
+    resolve_employee_details,
+)
 from .sheet_dropdowns import fetch_dropdown_lists
 from .sheet_values import match_literal
 from .translate_helper import translate_to_arabic
@@ -127,6 +131,14 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
         is_complaint = bool(fields.get("flag_commerce_complaint", False))
         if is_complaint:
             complaint_count += 1
+
+        # قاعدة الموظف (أولوية فوق التصنيف العام): فرع مذكور وبالكتالوج -> اسم الفرع، فرع
+        # مذكور ومو بالكتالوج -> "Branches"، بدون فرع مذكور -> "Employee". None = المكالمة
+        # أصلًا مو عن موظف، فيكمل التصنيف العادي أدناه بلا تغيير.
+        if r.call_summary:
+            employee_override = resolve_employee_details(r.call_summary, details_catalog_clean)
+            if employee_override is not None:
+                details_raw = employee_override
 
         # فرض "Job Email" فورًا لو المكالمة عن وظيفة/توظيف — أولوية فوق أي تصنيف آخر (نفس منطق
         # Advertisement/vendor-pitch)، يمنع "job" الحرفية (قيمة خاطئة منفصلة بالقائمة الحقيقية)
