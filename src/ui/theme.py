@@ -696,6 +696,8 @@ def inject_theme(lang: str) -> None:
         .maz-badge-danger {{ background: {DANGER_BG}; color: {DANGER}; }}
         /* شارة عمود Details — شكل موحّد واحد لكل قيمة خام حرفية (بدون أي تصنيف لوني حسب القيمة) */
         .maz-badge-details {{ background: {PURPLE_100}; color: {PRIMARY_ACTION}; }}
+        /* شارة عمود الشركة بالجدول */
+        .maz-badge-company {{ background: {PURPLE_50}; color: {PRIMARY_ACTION}; }}
 
         /* ==== بانر خطأ (أحمر — مسموح فقط لرسائل الخطأ) ==== */
         div[class*="st-key-maz_card_error_banner"] {{
@@ -829,6 +831,18 @@ def inject_theme(lang: str) -> None:
         table.maz-table tbody td[dir="ltr"], table.maz-table tbody td bdi {{ font-weight: 700; }}
         .maz-call-type {{ display: inline-flex; align-items: center; gap: 6px; }}
         .maz-call-type .material-symbols-outlined {{ color: {TEXT_MUTED}; font-size: 16px; }}
+        /* عمود الملاحظات بالجدول — يلتف على سطرين بالضبط ثم "..."، النص الكامل بـtitle
+        (tooltip عند التمرير)، أقصى عرض يمنع العمود من التمدد وكسر باقي الجدول. */
+        .maz-table-notes {{
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            color: {TEXT_MUTED_DARK};
+            font-size: 14px;
+            line-height: 1.4;
+            max-width: 320px;
+        }}
 
         /* ==== حالة فارغة ==== */
         .maz-empty-state {{

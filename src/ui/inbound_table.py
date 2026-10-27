@@ -23,12 +23,14 @@ import streamlit as st
 
 from src.translations import t
 
-from .badges import details_badge_html, repeat_badge_html, status_badge_html
+from .badges import company_badge_html, details_badge_html, repeat_badge_html, status_badge_html
 from .empty_state import render_empty_state
 from .phone_format import format_phone_display
 
 PAGE_SIZE = 25
-_DISPLAY_COLS = ["Date", "Number", "Inbound calls/out bound calls", "Call Status", "Details"]
+# نوع المكالمة/حالة المكالمة حُذفا من العرض فقط (كل القيم نفسها بهذي الصفحة) — يبقيان بملف
+# CSV المحمّل لأن التصدير يستخدم filtered_df الكامل مباشرة، غير مرتبط بـ_DISPLAY_COLS إطلاقًا.
+_DISPLAY_COLS = ["Date", "Number", "company", "Details", "Remark"]
 _SESSION_PAGE_KEY = "inbound_table_page"
 _SESSION_SHOW_ALL_COLS_KEY = "inbound_table_show_all_cols"
 
@@ -174,9 +176,11 @@ def _col_label(col: str, lang: str) -> str:
     return {
         "Date": t("inbound_table_col_date", lang),
         "Number": t("inbound_table_col_number", lang),
+        "company": t("inbound_table_col_company", lang),
         "Inbound calls/out bound calls": t("inbound_table_col_type", lang),
         "Call Status": t("inbound_table_col_status", lang),
         "Details": t("inbound_table_col_details", lang),
+        "Remark": t("inbound_table_col_notes", lang),
         "call_count": t("inbound_table_col_count", lang),
     }.get(col, col)
 
@@ -296,16 +300,18 @@ def render_filter_toolbar(df_with_date: pd.DataFrame, state: dict, lang: str) ->
 
 
 def _group_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """يدمج صفوف نفس الرقم+التاريخ لصف واحد: عدد المكالمات + أول Details غير فاضي."""
-    def _first_non_empty_details(s: pd.Series) -> str:
+    """يدمج صفوف نفس الرقم+التاريخ لصف واحد: عدد المكالمات + أول Details/Remark غير فاضي."""
+    def _first_non_empty(s: pd.Series) -> str:
         non_empty = [v for v in s if str(v).strip()]
         return non_empty[0] if non_empty else ""
 
     return df.groupby(["Number", "Date"], as_index=False, sort=False).agg(
         **{
+            "company": ("company", "first"),
             "Inbound calls/out bound calls": ("Inbound calls/out bound calls", "first"),
             "Call Status": ("Call Status", "first"),
-            "Details": ("Details", _first_non_empty_details),
+            "Details": ("Details", _first_non_empty),
+            "Remark": ("Remark", _first_non_empty),
             "call_count": ("Number", "count"),
         }
     )
@@ -394,8 +400,17 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
                     cells.append(f"<td>{_call_type_html(r[col], lang)}</td>")
                 elif col == "Call Status":
                     cells.append(f"<td>{status_badge_html(r[col], lang)}</td>")
+                elif col == "company":
+                    cells.append(f"<td>{company_badge_html(r[col])}</td>")
                 elif col == "Details":
                     cells.append(f"<td>{details_badge_html(r[col])}</td>")
+                elif col == "Remark":
+                    note = str(r[col] or "").strip()
+                    if note:
+                        escaped = html.escape(note)
+                        cells.append(f'<td><span class="maz-table-notes" title="{escaped}">{escaped}</span></td>')
+                    else:
+                        cells.append("<td>—</td>")
                 elif col == "call_count":
                     count = int(r[col])
                     cell_content = repeat_badge_html(count) if count > 1 else str(count)

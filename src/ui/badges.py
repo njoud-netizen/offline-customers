@@ -18,6 +18,17 @@ def details_badge_html(value: str) -> str:
     return f'<span class="maz-badge-pill maz-badge-details">{html.escape(raw)}</span>'
 
 
+def company_badge_html(value: str) -> str:
+    raw = (value or "").strip()
+    if not raw:
+        return "—"
+    escaped = html.escape(raw)
+    return (
+        f'<span class="maz-badge-pill maz-badge-company">'
+        f'<bdi dir="ltr" style="unicode-bidi:isolate;">{escaped}</bdi></span>'
+    )
+
+
 def status_badge_html(value: str, lang: str) -> str:
     raw = (value or "").strip()
     if not raw:
