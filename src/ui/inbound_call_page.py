@@ -40,6 +40,7 @@ from .inbound_table import (
     render_filter_toolbar,
     render_table_body,
     resolve_insight_state,
+    translate_pending_and_maybe_rerun,
 )
 from .icon_button import icon_download_button
 from .kpi_card import KPICardData, render_kpi_row
@@ -290,12 +291,15 @@ def _show_unclassified_dialog(df: pd.DataFrame, count: int, lang: str) -> None:
         if df.empty:
             st.info(t("inbound_dialog_empty", lang))
             return
-        st.markdown(build_unclassified_table_html(df, lang), unsafe_allow_html=True)
+        table_html, pending = build_unclassified_table_html(df, lang)
+        st.markdown(table_html, unsafe_allow_html=True)
         csv_bytes = df.to_csv(index=False).encode("utf-8-sig")
         icon_download_button(
             data=csv_bytes, file_name="inbound_unclassified_calls.csv", mime="text/csv",
             key="inbound_dialog_unclassified_csv", lang=lang,
         )
+        # طلب صريح: الترجمة (شبكة) تحدث بعد عرض الجدول/زر التحميل فعليًا، لا قبله.
+        translate_pending_and_maybe_rerun(pending)
 
     _dialog()
 
@@ -308,12 +312,14 @@ def _show_repeat_callers_dialog(df: pd.DataFrame, count: int, lang: str) -> None
         if count == 0:
             st.info(t("inbound_dialog_empty", lang))
             return
-        st.markdown(build_repeat_callers_table_html(df, lang), unsafe_allow_html=True)
-        csv_bytes = build_repeat_callers_csv(df, lang)
+        table_html, pending = build_repeat_callers_table_html(df, lang)
+        st.markdown(table_html, unsafe_allow_html=True)
+        csv_bytes, csv_pending = build_repeat_callers_csv(df, lang)
         icon_download_button(
             data=csv_bytes, file_name="inbound_repeat_callers.csv", mime="text/csv",
             key="inbound_dialog_repeat_csv", lang=lang,
         )
+        translate_pending_and_maybe_rerun(pending + csv_pending)
 
     _dialog()
 

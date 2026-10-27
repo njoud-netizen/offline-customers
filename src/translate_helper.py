@@ -135,3 +135,14 @@ def translate_to_arabic(text: str) -> str:
 def translate_to_arabic_status(text: str) -> tuple[str, bool]:
     """نفس الترجمة بالضبط (نفس الكاش/الاستدعاء — لا طلب API إضافي)، لكن ترجع علم نجاح صريح."""
     return _translate_with_status(text)
+
+
+def peek_cached_translation(text: str) -> "tuple[str, bool] | None":
+    """يتحقق من الكاش فقط — بدون أي استدعاء شبكة إطلاقًا. يرجع None لو النص ما تُرجم (أو لم
+    تتم محاولته) بعد بهذي العملية. طلب صريح: عرض الجدول لا يجب أن ينتظر أي ترجمة — هذه الدالة
+    هي ما يسمح لواجهة الجدول (inbound_table.py) بعرض النص فورًا من الكاش الجاهز فقط، وتأجيل أي
+    ترجمة غير جاهزة بعد لِما بعد عرض الجدول."""
+    key = (text or "").strip()
+    if not key:
+        return key, True
+    return _cache.get(key)

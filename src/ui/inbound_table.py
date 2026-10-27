@@ -45,40 +45,51 @@ _COL_WIDTH_CLASS = {
 }
 
 
-@st.cache_data(show_spinner=False)
-def _cached_translate_summary(summary_en: str) -> tuple[str, bool]:
-    """طبقة كاش إضافية (عبر إعادة التشغيلات/الجلسات بنفس عملية الخادم) فوق كاش الذاكرة
-    الداخلي بـtranslate_helper.py — نفس الملخص لا يُترجم مرتين إطلاقًا (طلب صريح). تُستدعى
-    فقط لصفوف الصفحة الحالية المعروضة فعليًا بالجدول (راجع render_table_body/build_*_table_html
-    أدناه) — لا تُستدعى أثناء معالجة الملف إطلاقًا."""
-    from src.translate_helper import translate_to_arabic_status
-    return translate_to_arabic_status(summary_en)
+def _build_remark_cell(meta: dict, lang: str, pending: list) -> tuple[str, bool, bool]:
+    """يرجع (النص المعروض, هل تحتاج تمييز بصري كرسالة تحتاج انتباه, هل هو إنجليزي —  يحتاج
+    dir="ltr" صريح بدل auto وسط سياق RTL). meta: _remark_meta من inbound_pipeline.py —
+    {"has_summary", "summary_en_full", "needs_attention"} (الترجمة العربية غير محسوبة مسبقًا).
 
+    طلب صريح (إصلاح علّة "الجدول يطلع فاضي"): عرض الجدول ممنوع ينتظر أي ترجمة. هذي الدالة تفحص
+    الكاش الجاهز فقط (peek_cached_translation — بدون أي استدعاء شبكة)؛ لو الترجمة جاهزة تُعرض
+    فورًا، وإلا يُعرض النص الإنجليزي كحل مؤقت فورًا والنص يُضاف لقائمة pending (تُمرَّر بالمرجع)
+    لتُترجم فعليًا *بعد* عرض الجدول (راجع translate_pending_and_maybe_rerun أدناه).
 
-def _build_remark_cell(meta: dict, lang: str) -> tuple[str, bool, bool]:
-    """يرجع (النص المعروض, هل تحتاج تمييز بصري كرسالة تحتاج انتباه, هل هو إنجليزي غير مترجم
-    بواجهة عربية — يحتاج dir="ltr" صريح بدل الاعتماد على auto وسط سياق RTL). meta: _remark_meta
-    من inbound_pipeline.py — {"has_summary", "summary_en_full", "needs_attention"} (الترجمة
-    العربية نفسها غير محسوبة مسبقًا — تحدث هنا فقط، عند الطلب الفعلي، لصف يُعرض فعليًا). طلب
-    صريح: النص المعروض هو استفسار العميل الفعلي الكامل دائمًا بدون استثناء — ممنوع أي جملة
-    بديلة عامة (لا "استفسار عام" ولا غيرها). فاضي فقط لو ما فيه ملخص مكالمة أصلًا بملف Maqsam."""
+    النص المعروض هو استفسار العميل الفعلي الكامل دائمًا بدون استثناء — ممنوع أي جملة بديلة
+    عامة. فاضي فقط لو ما فيه ملخص مكالمة أصلًا بملف Maqsam."""
     if not isinstance(meta, dict) or not meta.get("has_summary"):
         return "", False, False
 
     summary_en = str(meta.get("summary_en_full", "")).strip()
-    is_untranslated_english = False
-    if lang == "ar":
-        text, ok = _cached_translate_summary(summary_en)
-        if not ok:
-            # الترجمة فشلت فعليًا (مهلة/حصة يومية ناضبة/شبكة) -> الملخص الأصلي الإنجليزي
-            # كاملًا، بدون أي اقتطاع ولا جملة بديلة — طلب صريح: يبدأ من اليسار (LTR) حتى وسط
-            # صفحة عربية RTL، بدل الاعتماد على dir="auto".
-            text = summary_en
-            is_untranslated_english = True
-    else:
-        text = summary_en
+    needs_attention = bool(meta.get("needs_attention"))
+    if lang != "ar":
+        return summary_en, needs_attention, False
 
-    return text, bool(meta.get("needs_attention")), is_untranslated_english
+    from src.translate_helper import peek_cached_translation
+    cached = peek_cached_translation(summary_en)
+    if cached is None:
+        pending.append(summary_en)
+        return summary_en, needs_attention, True
+    text, ok = cached
+    if not ok:
+        return summary_en, needs_attention, True
+    return text, needs_attention, False
+
+
+def translate_pending_and_maybe_rerun(pending: list) -> None:
+    """يُستدعى *بعد* رسم الجدول/النافذة (طلب صريح: لا يوقف عرضه أبدًا) — يترجم فعليًا (شبكة)
+    كل نص لم يكن بالكاش وقت البناء. لو نجحت ترجمة جديدة واحدة على الأقل، يعاد تشغيل السكربت
+    مرة وحدة بس لعرضها فورًا بدل الانتظار لإعادة تحميل الصفحة يدويًا."""
+    if not pending:
+        return
+    from src.translate_helper import translate_to_arabic_status
+    any_new = False
+    for text in pending:
+        _, ok = translate_to_arabic_status(text)
+        if ok:
+            any_new = True
+    if any_new:
+        st.rerun()
 
 
 def normalize_phone(raw: str) -> str:
@@ -363,9 +374,9 @@ def _repeat_callers_groups(filtered_df: pd.DataFrame) -> list[tuple[str, pd.Data
     return [(number, filtered_df[filtered_df["Number"].astype(str) == number]) for number in repeated.index]
 
 
-def _last_note_for_group(group: pd.DataFrame, lang: str) -> str:
+def _last_note_for_group(group: pd.DataFrame, lang: str, pending: list) -> str:
     row = group.sort_values("Date").iloc[-1] if "Date" in group.columns else group.iloc[-1]
-    note, _, _ = _build_remark_cell(row.get("_remark_meta"), lang)
+    note, _, _ = _build_remark_cell(row.get("_remark_meta"), lang, pending)
     return note.strip()
 
 
@@ -375,13 +386,16 @@ def _first_non_empty_company(group: pd.DataFrame) -> str:
     return str(non_empty.iloc[0]) if not non_empty.empty else ""
 
 
-def build_unclassified_table_html(df: pd.DataFrame, lang: str) -> str:
-    """جدول HTML (نفس ستايل .maz-table) لصفوف بدون تصنيف: رقم الجوال | الشركة | الملاحظات."""
+def build_unclassified_table_html(df: pd.DataFrame, lang: str) -> tuple[str, list]:
+    """جدول HTML (نفس ستايل .maz-table) لصفوف بدون تصنيف: رقم الجوال | الشركة | الملاحظات.
+    يرجع (html, pending) — pending: نصوص لم تُترجم بعد، على المستدعي تمريرها لـ
+    translate_pending_and_maybe_rerun *بعد* رسم الجدول (لا قبله)."""
     header_html = (
         f'<th class="maz-col-number">{html.escape(t("inbound_table_col_number", lang))}</th>'
         f'<th class="maz-col-company">{html.escape(t("inbound_table_col_company", lang))}</th>'
         f'<th class="maz-col-remark">{html.escape(t("inbound_table_col_notes", lang))}</th>'
     )
+    pending: list = []
     rows_html = []
     for _, r in df.iterrows():
         number_cell = (
@@ -389,7 +403,7 @@ def build_unclassified_table_html(df: pd.DataFrame, lang: str) -> str:
             f'{html.escape(format_phone_display(r["Number"]))}</bdi></td>'
         )
         company_cell = f'<td class="maz-col-company">{company_badge_html(r.get("company", ""))}</td>'
-        note, is_system, is_en_fallback = _build_remark_cell(r.get("_remark_meta"), lang)
+        note, is_system, is_en_fallback = _build_remark_cell(r.get("_remark_meta"), lang, pending)
         note = note.strip()
         if note:
             escaped = html.escape(note)
@@ -399,27 +413,30 @@ def build_unclassified_table_html(df: pd.DataFrame, lang: str) -> str:
         else:
             note_cell = '<td class="maz-col-remark"><span class="maz-table-dash">—</span></td>'
         rows_html.append(f"<tr>{number_cell}{company_cell}{note_cell}</tr>")
-    return (
+    html_str = (
         '<div class="maz-table-scroll"><table class="maz-table">'
         f"<thead><tr>{header_html}</tr></thead>"
         f"<tbody>{''.join(rows_html)}</tbody>"
         "</table></div>"
     )
+    return html_str, pending
 
 
-def build_repeat_callers_table_html(filtered_df: pd.DataFrame, lang: str) -> str:
-    """جدول HTML لأرقام اتصلت أكثر من مرة: الرقم | كم مرة اتصل | الشركة | آخر ملاحظة."""
+def build_repeat_callers_table_html(filtered_df: pd.DataFrame, lang: str) -> tuple[str, list]:
+    """جدول HTML لأرقام اتصلت أكثر من مرة: الرقم | كم مرة اتصل | الشركة | آخر ملاحظة.
+    يرجع (html, pending) — نفس مبدأ build_unclassified_table_html أعلاه."""
     header_html = (
         f'<th class="maz-col-number">{html.escape(t("inbound_table_col_number", lang))}</th>'
         f'<th>{html.escape(t("inbound_table_col_count", lang))}</th>'
         f'<th class="maz-col-company">{html.escape(t("inbound_table_col_company", lang))}</th>'
         f'<th class="maz-col-remark">{html.escape(t("inbound_dialog_col_last_note", lang))}</th>'
     )
+    pending: list = []
     rows_html = []
     for number, group in _repeat_callers_groups(filtered_df):
         count = len(group)
         company = _first_non_empty_company(group)
-        note = _last_note_for_group(group, lang)
+        note = _last_note_for_group(group, lang, pending)
         number_cell = (
             f'<td class="maz-col-number"><bdi dir="ltr" style="unicode-bidi:isolate;">'
             f'{html.escape(format_phone_display(number))}</bdi></td>'
@@ -431,25 +448,29 @@ def build_repeat_callers_table_html(filtered_df: pd.DataFrame, lang: str) -> str
         else:
             note_cell = '<td class="maz-col-remark"><span class="maz-table-dash">—</span></td>'
         rows_html.append(f"<tr>{number_cell}{count_cell}{company_cell}{note_cell}</tr>")
-    return (
+    html_str = (
         '<div class="maz-table-scroll"><table class="maz-table">'
         f"<thead><tr>{header_html}</tr></thead>"
         f"<tbody>{''.join(rows_html)}</tbody>"
         "</table></div>"
     )
+    return html_str, pending
 
 
-def build_repeat_callers_csv(filtered_df: pd.DataFrame, lang: str) -> bytes:
-    """CSV بنفس 4 أعمدة نافذة الأرقام المكررة المنبثقة (مجمّعة حسب الرقم، لا صفوف خام)."""
+def build_repeat_callers_csv(filtered_df: pd.DataFrame, lang: str) -> tuple[bytes, list]:
+    """CSV بنفس 4 أعمدة نافذة الأرقام المكررة المنبثقة (مجمّعة حسب الرقم، لا صفوف خام).
+    يرجع (bytes, pending) — نفس مبدأ build_*_table_html أعلاه."""
+    pending: list = []
     records = []
     for number, group in _repeat_callers_groups(filtered_df):
         records.append({
             _col_label("Number", lang): format_phone_display(number),
             _col_label("call_count", lang): len(group),
             _col_label("company", lang): _first_non_empty_company(group),
-            t("inbound_dialog_col_last_note", lang): _last_note_for_group(group, lang),
+            t("inbound_dialog_col_last_note", lang): _last_note_for_group(group, lang, pending),
         })
-    return pd.DataFrame(records).to_csv(index=False).encode("utf-8-sig")
+    csv_bytes = pd.DataFrame(records).to_csv(index=False).encode("utf-8-sig")
+    return csv_bytes, pending
 
 
 def _group_rows(df: pd.DataFrame) -> pd.DataFrame:
@@ -544,6 +565,7 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
             f'<th class="{_COL_WIDTH_CLASS.get(c, "")}">{html.escape(_col_label(c, lang))}</th>'
             for c in visible_cols_final
         )
+        pending: list = []
         rows_html = []
         for _, r in page_df.iterrows():
             cells = []
@@ -563,7 +585,7 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
                 elif col == "Details":
                     cells.append(f'<td class="{col_class}">{details_badge_html(r[col])}</td>')
                 elif col == "Remark":
-                    note, is_system, is_en_fallback = _build_remark_cell(r.get("_remark_meta"), lang)
+                    note, is_system, is_en_fallback = _build_remark_cell(r.get("_remark_meta"), lang, pending)
                     note = note.strip()
                     note_dir = "ltr" if is_en_fallback else "auto"
                     if note:
@@ -597,3 +619,6 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
             "</table></div>"
         )
         st.markdown(table_html, unsafe_allow_html=True)
+        # طلب صريح: الترجمة الفعلية (شبكة) تحدث هنا فقط — *بعد* إرسال الجدول فعليًا للمتصفح
+        # (st.markdown أعلاه)، فلا تتوقف ظهور الجدول على اكتمالها أبدًا.
+        translate_pending_and_maybe_rerun(pending)
