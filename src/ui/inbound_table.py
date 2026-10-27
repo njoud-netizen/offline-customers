@@ -33,6 +33,25 @@ PAGE_SIZE = 25
 _DISPLAY_COLS = ["Date", "Number", "company", "Details", "Remark"]
 _SESSION_PAGE_KEY = "inbound_table_page"
 _SESSION_SHOW_ALL_COLS_KEY = "inbound_table_show_all_cols"
+# عرض ثابت لكل عمود (بالـclass، لا nth-child، حتى يبقى صحيح بغض النظر عن ترتيب/إخفاء
+# الأعمدة الفعلي) — الملاحظات تاخذ الباقي عبر width:auto بوضع table-layout:fixed بـtheme.py.
+_COL_WIDTH_CLASS = {
+    "Date": "maz-col-date",
+    "Number": "maz-col-number",
+    "company": "maz-col-company",
+    "Details": "maz-col-details",
+    "Remark": "maz-col-remark",
+}
+# بادئة تُحذف من عرض الجدول فقط (تبقى بملف الإخراج/الشيت كما هي — سياق إضافي مفيد هناك، لكنها
+# زائدة هنا لأن عنوان العمود نفسه "الملاحظات" يوضّح السياق أصلًا).
+_REMARK_DISPLAY_PREFIX = "استفسار العميل: "
+
+
+def _remark_display(raw: str) -> str:
+    text = str(raw or "").strip()
+    if text.startswith(_REMARK_DISPLAY_PREFIX):
+        text = text[len(_REMARK_DISPLAY_PREFIX):].strip()
+    return text
 
 
 def normalize_phone(raw: str) -> str:
@@ -386,14 +405,18 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
 
         page_df = table_df.iloc[page * PAGE_SIZE: (page + 1) * PAGE_SIZE]
 
-        header_html = "".join(f"<th>{html.escape(_col_label(c, lang))}</th>" for c in visible_cols_final)
+        header_html = "".join(
+            f'<th class="{_COL_WIDTH_CLASS.get(c, "")}">{html.escape(_col_label(c, lang))}</th>'
+            for c in visible_cols_final
+        )
         rows_html = []
         for _, r in page_df.iterrows():
             cells = []
             for col in visible_cols_final:
+                col_class = _COL_WIDTH_CLASS.get(col, "")
                 if col == "Number":
                     cells.append(
-                        f'<td><bdi dir="ltr" style="unicode-bidi:isolate;">'
+                        f'<td class="{col_class}"><bdi dir="ltr" style="unicode-bidi:isolate;">'
                         f'{html.escape(format_phone_display(r[col]))}</bdi></td>'
                     )
                 elif col == "Inbound calls/out bound calls":
@@ -401,22 +424,25 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
                 elif col == "Call Status":
                     cells.append(f"<td>{status_badge_html(r[col], lang)}</td>")
                 elif col == "company":
-                    cells.append(f"<td>{company_badge_html(r[col])}</td>")
+                    cells.append(f'<td class="{col_class}">{company_badge_html(r[col])}</td>')
                 elif col == "Details":
-                    cells.append(f"<td>{details_badge_html(r[col])}</td>")
+                    cells.append(f'<td class="{col_class}">{details_badge_html(r[col])}</td>')
                 elif col == "Remark":
-                    note = str(r[col] or "").strip()
+                    note = _remark_display(r[col])
                     if note:
                         escaped = html.escape(note)
-                        cells.append(f'<td><span class="maz-table-notes" title="{escaped}">{escaped}</span></td>')
+                        cells.append(
+                            f'<td class="{col_class}"><span class="maz-table-notes" dir="auto" '
+                            f'title="{escaped}">{escaped}</span></td>'
+                        )
                     else:
-                        cells.append("<td>—</td>")
+                        cells.append(f'<td class="{col_class}"><span class="maz-table-dash">—</span></td>')
                 elif col == "call_count":
                     count = int(r[col])
                     cell_content = repeat_badge_html(count) if count > 1 else str(count)
                     cells.append(f'<td dir="ltr">{cell_content}</td>')
                 else:
-                    cells.append(f"<td>{html.escape(str(r[col]))}</td>")
+                    cells.append(f'<td class="{col_class}">{html.escape(str(r[col]))}</td>')
             rows_html.append(f"<tr>{''.join(cells)}</tr>")
 
         table_html = (

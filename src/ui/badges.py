@@ -11,17 +11,20 @@ import html
 from src.translations import t
 
 
+_DASH = '<span class="maz-table-dash">—</span>'
+
+
 def details_badge_html(value: str) -> str:
     raw = (value or "").strip()
     if not raw:
-        return "—"
+        return _DASH
     return f'<span class="maz-badge-pill maz-badge-details">{html.escape(raw)}</span>'
 
 
 def company_badge_html(value: str) -> str:
     raw = (value or "").strip()
     if not raw:
-        return "—"
+        return _DASH
     escaped = html.escape(raw)
     return (
         f'<span class="maz-badge-pill maz-badge-company">'

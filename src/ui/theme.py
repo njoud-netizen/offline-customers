@@ -696,8 +696,11 @@ def inject_theme(lang: str) -> None:
         .maz-badge-danger {{ background: {DANGER_BG}; color: {DANGER}; }}
         /* شارة عمود Details — شكل موحّد واحد لكل قيمة خام حرفية (بدون أي تصنيف لوني حسب القيمة) */
         .maz-badge-details {{ background: {PURPLE_100}; color: {PRIMARY_ACTION}; }}
-        /* شارة عمود الشركة بالجدول */
-        .maz-badge-company {{ background: {PURPLE_50}; color: {PRIMARY_ACTION}; }}
+        /* شارة عمود الشركة بالجدول — نفس خلفية Details (أغمق من تلوين الصفوف المتبادل PURPLE_50
+        حتى تبان الشارة بوضوح بكل الصفوف، فاتحة أو داكنة). */
+        .maz-badge-company {{ background: {PURPLE_100}; color: {PRIMARY_ACTION}; }}
+        /* "—" بالجدول (خانة فاضية) — لون فاتح متعمَّد حتى ما يلفت النظر وسط باقي الشارات */
+        .maz-table-dash {{ color: {PURPLE_200}; }}
 
         /* ==== بانر خطأ (أحمر — مسموح فقط لرسائل الخطأ) ==== */
         div[class*="st-key-maz_card_error_banner"] {{
@@ -807,7 +810,15 @@ def inject_theme(lang: str) -> None:
             border-collapse: collapse;
             font-size: 0.85rem;
             min-width: 640px;
+            table-layout: fixed;
         }}
+        /* عرض أعمدة ثابت (الملاحظات تاخذ الباقي عبر width:auto بوضع table-layout:fixed) —
+        التاريخ/الرقم بسطر واحد دايمًا بغض النظر عن طول المحتوى. */
+        .maz-col-date {{ width: 110px; white-space: nowrap; }}
+        .maz-col-number {{ width: 170px; white-space: nowrap; }}
+        .maz-col-company {{ width: 160px; }}
+        .maz-col-details {{ width: 200px; }}
+        .maz-col-remark {{ width: auto; }}
         table.maz-table thead th {{
             position: sticky;
             top: 0;
@@ -831,17 +842,16 @@ def inject_theme(lang: str) -> None:
         table.maz-table tbody td[dir="ltr"], table.maz-table tbody td bdi {{ font-weight: 700; }}
         .maz-call-type {{ display: inline-flex; align-items: center; gap: 6px; }}
         .maz-call-type .material-symbols-outlined {{ color: {TEXT_MUTED}; font-size: 16px; }}
-        /* عمود الملاحظات بالجدول — يلتف على سطرين بالضبط ثم "..."، النص الكامل بـtitle
-        (tooltip عند التمرير)، أقصى عرض يمنع العمود من التمدد وكسر باقي الجدول. */
+        /* عمود الملاحظات بالجدول — سطر واحد بس ثم "..."، النص الكامل بـtitle (tooltip عند
+        التمرير). dir="auto" على العنصر نفسه (بالـHTML) يخلي كل ملاحظة تتبع اتجاه محتواها
+        الفعلي بدل اتجاه الصفحة الثابت. */
         .maz-table-notes {{
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
+            display: block;
+            white-space: nowrap;
             overflow: hidden;
+            text-overflow: ellipsis;
             color: {TEXT_MUTED_DARK};
             font-size: 14px;
-            line-height: 1.4;
-            max-width: 320px;
         }}
 
         /* ==== حالة فارغة ==== */
