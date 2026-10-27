@@ -1,45 +1,31 @@
 """شارات ملوّنة (Pill Badges) لعمودي Details/Call Status بجدول Inbound Call.
 
-القيم الخمس المذكورة صراحة بالمواصفة (Offers/Order/Other/Website/فاضي) تُترجم وتُلوَّن حسب
-الطلب الصريح. باقي قيم Details الحقيقية (169 قيمة فعلية بالنظام، أكثر بكثير من هذي الأمثلة
-الخمسة) تُعرض بنصها الأصلي كما هو (بدون ترجمة — نفس قاعدة translations.py العامة لقيم
-البيانات) بلون محايد افتراضي، لأنه لا توجد ترجمة عربية معتمدة للـ164 قيمة الأخرى."""
+Details: نص خام حرفي من البيانات المصدرية دائمًا — بدون أي ترجمة أو تصحيح إملائي أو
+mapping يغيّر القيمة، حسب الطلب الصريح. شارة واحدة موحّدة الشكل لكل قيمة غير فاضية
+(خلفية PURPLE_100 / نص PRIMARY_ACTION)؛ القيمة الفاضية تُعرض "—" بدون شارة إطلاقًا.
+
+Call Status: الحالة الوحيدة التي لها ترجمة خاصة هي "Serviced" (تمت الخدمة بالعربي) —
+تُترجم حسب لغة الواجهة الحالية عبر translations.py؛ أي حالة أخرى تُعرض بنصها الخام."""
 import html
 
-_KNOWN_DETAILS_LABELS = {
-    "offers": ("عروض", "maz-badge-offers"),
-    "order": ("طلب", "maz-badge-order"),
-    "other": ("أخرى", "maz-badge-other"),
-    "website": ("الموقع", "maz-badge-other"),
-}
-
-_KNOWN_STATUS_LABELS = {
-    "serviced": ("تمت الخدمة", "maz-badge-serviced"),
-}
+from src.translations import t
 
 
 def details_badge_html(value: str) -> str:
     raw = (value or "").strip()
     if not raw:
-        return '<span class="maz-badge-pill maz-badge-other">—</span>'
-
-    known = _KNOWN_DETAILS_LABELS.get(raw.lower())
-    if known:
-        label, css_class = known
-        return f'<span class="maz-badge-pill {css_class}">{html.escape(label)}</span>'
-
-    return f'<span class="maz-badge-pill maz-badge-other">{html.escape(raw)}</span>'
+        return "—"
+    return f'<span class="maz-badge-pill maz-badge-details">{html.escape(raw)}</span>'
 
 
-def status_badge_html(value: str) -> str:
+def status_badge_html(value: str, lang: str) -> str:
     raw = (value or "").strip()
     if not raw:
         return '<span class="maz-badge-pill maz-badge-other">—</span>'
-    known = _KNOWN_STATUS_LABELS.get(raw.lower())
-    if known:
-        label, css_class = known
+    if raw.lower() == "serviced":
+        label = t("inbound_kpi_serviced", lang)
         return (
-            f'<span class="maz-badge-pill {css_class}">'
+            f'<span class="maz-badge-pill maz-badge-serviced">'
             f'<span class="maz-status-dot"></span>{html.escape(label)}</span>'
         )
     return f'<span class="maz-badge-pill maz-badge-other">{html.escape(raw)}</span>'

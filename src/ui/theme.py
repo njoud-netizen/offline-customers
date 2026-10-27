@@ -692,11 +692,29 @@ def inject_theme(lang: str) -> None:
         .maz-badge-other {{ background: {BADGE_OTHER_BG}; color: {BADGE_OTHER_TEXT}; }}
         .maz-badge-repeat {{ background: {BADGE_REPEAT_BG}; color: {BADGE_REPEAT_TEXT}; }}
         .maz-badge-danger {{ background: {DANGER_BG}; color: {DANGER}; }}
+        /* شارة عمود Details — شكل موحّد واحد لكل قيمة خام حرفية (بدون أي تصنيف لوني حسب القيمة) */
+        .maz-badge-details {{ background: {PURPLE_100}; color: {PRIMARY_ACTION}; }}
 
         /* ==== بانر خطأ (أحمر — مسموح فقط لرسائل الخطأ) ==== */
         div[class*="st-key-maz_card_error_banner"] {{
             background: {DANGER_BG} !important;
             border-color: #FCA5A5 !important;
+        }}
+
+        /* ==== بانر نجاح (st.success) — بنفسجي فاتح بدل الأخضر الافتراضي ==== */
+        div[data-testid="stAlertContainer"]:has(div[data-testid="stAlertContentSuccess"]),
+        div[data-testid="stAlertContentSuccess"] {{
+            background-color: {PURPLE_50} !important;
+            border: 1px solid {PURPLE_100} !important;
+            color: {PRIMARY_ACTION} !important;
+        }}
+        div[data-testid="stAlertContentSuccess"] p,
+        div[data-testid="stAlertContentSuccess"] * {{
+            color: {PRIMARY_ACTION} !important;
+        }}
+        div[data-testid="stAlertContentSuccess"] svg {{
+            fill: {MAZNEXA_PURPLE} !important;
+            color: {MAZNEXA_PURPLE} !important;
         }}
 
         /* ==== مؤشر الخطوات (Step Indicator) — بطاقات بيضاء بحدود، الخطوة الحالية حدها بنفسجي ==== */

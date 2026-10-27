@@ -82,6 +82,9 @@ def resolve_insight_state(rows: list[dict]) -> dict:
     company_options = get_company_options(rows)
     top_company = get_top_company(rows)
 
+    company_series = df.get("company", pd.Series(dtype=str))
+    company_counts = company_series[company_series.astype(str).str.strip() != ""].value_counts()
+
     company_choice = st.session_state.get(COMPANY_SELECT_KEY, COMPANY_MODE_TOP)
     if company_choice == COMPANY_MODE_TOP:
         company_filter = [top_company] if top_company else []
@@ -130,6 +133,7 @@ def resolve_insight_state(rows: list[dict]) -> dict:
     return {
         "df": df,
         "company_options": company_options,
+        "company_counts": company_counts,
         "top_company": top_company,
         "company_choice": company_choice,
         "company_filter": company_filter,
@@ -378,7 +382,7 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
                 elif col == "Inbound calls/out bound calls":
                     cells.append(f"<td>{_call_type_html(r[col], lang)}</td>")
                 elif col == "Call Status":
-                    cells.append(f"<td>{status_badge_html(r[col])}</td>")
+                    cells.append(f"<td>{status_badge_html(r[col], lang)}</td>")
                 elif col == "Details":
                     cells.append(f"<td>{details_badge_html(r[col])}</td>")
                 elif col == "call_count":

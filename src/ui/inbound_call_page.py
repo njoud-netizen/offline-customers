@@ -8,6 +8,7 @@ run_pipeline الحالي، بدون أي تعديل عليه هنا.
 بصريًا لاحقًا بموضعه الصحيح (فوق الجدول مباشرة) — راجع inbound_table.py للتفاصيل. الهيدر
 أيضًا يُعاد رسمه عبر st.empty() (header_box) فور توفر النتائج ليصير "نتائج الاستخراج" بدل
 هيدر الرفع الافتراضي، مع زر تحميل CSV."""
+import html
 from datetime import date
 
 import pandas as pd
@@ -45,20 +46,6 @@ def _icon_tile(name: str) -> str:
     return f'<span class="maz-kpi-icon-tile"><span class="material-symbols-outlined">{name}</span></span>'
 
 
-# تصحيحات عرض فقط لأسماء أسباب معروفة بخطأ إملائي/تنسيق بالبيانات المصدرية — لا تغيّر أي
-# شيء بالتجميع/الفلترة نفسها (يُطبَّق على نص العرض فقط، بعد الفرز والعدّ).
-_REASON_DISPLAY_FIXES = {
-    "jeddah branche": "Jeddah Branch",
-}
-
-
-def _display_reason_name(raw) -> str:
-    key = str(raw).strip().lower()
-    if key in _REASON_DISPLAY_FIXES:
-        return _REASON_DISPLAY_FIXES[key]
-    return str(raw).strip().title()
-
-
 def _format_called_times(count: int, lang: str) -> str:
     if count == 1:
         return t("inbound_called_once", lang)
@@ -77,10 +64,11 @@ def _ranked_bars_html(counts: "pd.Series[int]", display_fn=str) -> str:
     for idx, (value, cnt) in enumerate(counts.items()):
         pct_of_max = (cnt / max_count * 100) if max_count else 0
         fill_class = "maz-reason-fill" if idx == 0 else "maz-reason-fill-secondary"
+        display_value = html.escape(str(display_fn(value)))
         rows.append(
             f'<div class="maz-reason-row">'
             f'<div class="maz-reason-label-row">'
-            f'<span title="{value}">{display_fn(value)}</span><span>{cnt}</span>'
+            f'<span title="{display_value}">{display_value}</span><span>{cnt}</span>'
             f'</div>'
             f'<div class="maz-reason-track"><div class="{fill_class}" style="width:{pct_of_max:.0f}%;"></div></div>'
             f"</div>"
@@ -103,7 +91,13 @@ def _reason_option_label(value: str, lang: str) -> str:
         return t("inbound_select_reason_bottom", lang)
     if value == REASON_MODE_ALL:
         return t("inbound_select_reason_all", lang)
-    return _display_reason_name(value)
+    return str(value)
+
+
+def _number_card_title(choice: str, lang: str) -> str:
+    if choice == NUMBER_MODE_TOP:
+        return t("inbound_insight_top_number", lang)
+    return format_phone_display(choice)
 
 
 def _number_option_label(value: str, counts: "pd.Series[int]", lang: str) -> str:
@@ -113,29 +107,33 @@ def _number_option_label(value: str, counts: "pd.Series[int]", lang: str) -> str
     return t("inbound_number_option_format", lang).format(number=format_phone_display(value), count=count)
 
 
+def _isolated_value(value: str) -> str:
+    """يعزل قيمة لاتينية (رقم/تاريخ/اسم إنجليزي) عن انعكاس ثنائي الاتجاه بالنص العربي
+    المحيط بها (unicode-bidi: isolate)، بدون التأثير على القيمة نفسها."""
+    return f'<span dir="ltr" style="unicode-bidi:isolate;">{value}</span>'
+
+
 def _company_card_body(state: dict, lang: str) -> str:
     choice = state["company_choice"]
     if choice == COMPANY_MODE_ALL:
-        company_series = state["df"].get("company", pd.Series(dtype=str))
-        counts = company_series[company_series.astype(str).str.strip() != ""].value_counts()
-        return _ranked_bars_html(counts)
+        return _ranked_bars_html(state["company_counts"])
     name = state["top_company"] if choice == COMPANY_MODE_TOP else choice
     if not name:
         return '<div class="maz-insight-meta">—</div>'
-    count = len(state["company_scoped_df"])
+    count = int(state["company_counts"].get(name, 0))
     total = len(state["df"])
     pct = (count / total * 100) if total else 0.0
     meta = (
         f'{t("inbound_insight_call_count", lang).format(count=count)} · '
         f'{t("inbound_insight_of_total", lang).format(pct=f"{pct:.0f}")}'
     )
-    return f'<div class="maz-insight-value">{name}</div><div class="maz-insight-meta">{meta}</div>'
+    return f'<div class="maz-insight-value">{html.escape(name)}</div><div class="maz-insight-meta">{meta}</div>'
 
 
 def _reason_card_body(state: dict, lang: str) -> str:
     choice = state["reason_choice"]
     if choice == REASON_MODE_ALL:
-        return _ranked_bars_html(state["reason_counts"], _display_reason_name)
+        return _ranked_bars_html(state["reason_counts"])
     name = state["reason_display"]
     if not name:
         return '<div class="maz-insight-meta">—</div>'
@@ -146,7 +144,7 @@ def _reason_card_body(state: dict, lang: str) -> str:
         f'{t("inbound_insight_call_count", lang).format(count=count)} · '
         f'{t("inbound_insight_of_total", lang).format(pct=f"{pct:.0f}")}'
     )
-    return f'<div class="maz-insight-value">{_display_reason_name(name)}</div><div class="maz-insight-meta">{meta}</div>'
+    return f'<div class="maz-insight-value">{html.escape(name)}</div><div class="maz-insight-meta">{meta}</div>'
 
 
 def _number_card_body(state: dict, lang: str) -> str:
@@ -170,13 +168,18 @@ def _number_card_body(state: dict, lang: str) -> str:
         nz_reason = rows_for_number.get("Details", pd.Series(dtype=str))
         nz_reason = nz_reason[nz_reason.astype(str).str.strip() != ""]
         if not nz_reason.empty:
-            reason_name = _display_reason_name(nz_reason.iloc[0])
-    info_line = t("inbound_last_call_info", lang).format(date=last_date, company=company_name, reason=reason_name)
+            reason_name = str(nz_reason.iloc[0])
+
+    date_line = f'{t("inbound_last_call_label", lang)} {_isolated_value(html.escape(last_date))}'
+    company_line = f'{t("inbound_insight_company_label", lang)} {_isolated_value(html.escape(company_name))}'
+    reason_line = f'{t("inbound_insight_reason_label", lang)} {_isolated_value(html.escape(reason_name))}'
 
     return (
         f'<div class="maz-insight-value" dir="ltr">{display_number}</div>'
         f'<div class="maz-insight-meta">{times_text}</div>'
-        f'<div class="maz-insight-meta">{info_line}</div>'
+        f'<div class="maz-insight-meta">{date_line}</div>'
+        f'<div class="maz-insight-meta">{company_line}</div>'
+        f'<div class="maz-insight-meta">{reason_line}</div>'
     )
 
 
@@ -214,11 +217,15 @@ def _render_insight_section(state: dict, lang: str) -> None:
                 key=NUMBER_SELECT_KEY, label_visibility="collapsed",
             )
 
+    company_label = _company_option_label(state["company_choice"], lang)
+    reason_label = _reason_option_label(state["reason_choice"], lang)
+    number_label = _number_card_title(state["number_choice"], lang)
+
     company_card_html = (
         f'<div class="maz-insight-card">'
         f'<div class="maz-insight-header">'
         f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">business</span></div>'
-        f'<div class="maz-insight-label">{t("inbound_insight_top_company", lang)}</div>'
+        f'<div class="maz-insight-label">{html.escape(company_label)}</div>'
         f"</div>"
         f'<div class="maz-insight-body">{_company_card_body(state, lang)}</div>'
         f"</div>"
@@ -227,7 +234,7 @@ def _render_insight_section(state: dict, lang: str) -> None:
         f'<div class="maz-insight-card">'
         f'<div class="maz-insight-header">'
         f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">forum</span></div>'
-        f'<div class="maz-insight-label">{t("inbound_insight_top_reason", lang)}</div>'
+        f'<div class="maz-insight-label">{html.escape(reason_label)}</div>'
         f"</div>"
         f'<div class="maz-insight-body">{_reason_card_body(state, lang)}</div>'
         f"</div>"
@@ -236,7 +243,7 @@ def _render_insight_section(state: dict, lang: str) -> None:
         f'<div class="maz-insight-card">'
         f'<div class="maz-insight-header">'
         f'<div class="maz-insight-icon-tile"><span class="material-symbols-outlined">call</span></div>'
-        f'<div class="maz-insight-label">{t("inbound_insight_top_number", lang)}</div>'
+        f'<div class="maz-insight-label">{html.escape(number_label)}</div>'
         f"</div>"
         f'<div class="maz-insight-body">{_number_card_body(state, lang)}</div>'
         f"</div>"
