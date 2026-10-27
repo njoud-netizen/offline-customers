@@ -175,7 +175,7 @@ def _number_card_body(state: dict, lang: str) -> str:
     reason_line = f'{t("inbound_insight_reason_label", lang)} {_isolated_value(html.escape(reason_name))}'
 
     return (
-        f'<div class="maz-insight-value" dir="ltr">{display_number}</div>'
+        f'<div class="maz-insight-value">{_isolated_value(display_number)}</div>'
         f'<div class="maz-insight-meta">{times_text}</div>'
         f'<div class="maz-insight-meta">{date_line}</div>'
         f'<div class="maz-insight-meta">{company_line}</div>'

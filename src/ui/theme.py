@@ -546,9 +546,10 @@ def inject_theme(lang: str) -> None:
         }}
         .maz-kpi-value {{
             color: var(--text-primary);
-            font-weight: 800;
+            font-weight: 700;
             font-size: 40px;
             line-height: 1.2;
+            font-family: 'IBM Plex Sans Arabic', sans-serif;
             direction: ltr;
             unicode-bidi: plaintext;
             text-align: start;
@@ -646,10 +647,11 @@ def inject_theme(lang: str) -> None:
             line-height: 1.3;
             font-family: 'IBM Plex Sans Arabic', sans-serif;
         }}
-        .maz-insight-value[dir="ltr"] {{
-            unicode-bidi: isolate;
-            text-align: right;
-            white-space: nowrap;
+        /* قيم/أرقام لاتينية معزولة داخل البطاقات (رقم الجوال، التاريخ، اسم الشركة بالإنجليزي
+        بسطر "الشركة:"...) — نفس خط الصفحة IBM Plex Sans Arabic دائمًا (بدل Poppins اللي تفرضه
+        القاعدة العامة [dir="ltr"] بباقي الصفحة)، ومحاذاتها تتبع اتجاه الصفحة نفسه (لا تعيين
+        text-align هنا إطلاقًا — تبقى موروثة من .stApp div {{ text-align: start }}). */
+        .maz-insight-card [dir="ltr"] {{
             font-family: 'IBM Plex Sans Arabic', sans-serif;
         }}
         .maz-insight-meta {{ color: {TEXT_MUTED}; font-size: 14px; margin-top: 4px; }}
@@ -701,11 +703,17 @@ def inject_theme(lang: str) -> None:
             border-color: #FCA5A5 !important;
         }}
 
-        /* ==== بانر نجاح (st.success) — بنفسجي فاتح بدل الأخضر الافتراضي ==== */
-        div[data-testid="stAlertContainer"]:has(div[data-testid="stAlertContentSuccess"]),
-        div[data-testid="stAlertContentSuccess"] {{
+        /* ==== بانر نجاح (st.success) — بنفسجي فاتح بدل الأخضر الافتراضي، إطار واحد بس على
+        الصندوق الخارجي (الصندوق الداخلي stAlertContentSuccess بلا إطار/خلفية خاصة به حتى
+        لا يتكرر الإطار مرتين). ==== */
+        div[data-testid="stAlertContainer"]:has(div[data-testid="stAlertContentSuccess"]) {{
             background-color: {PURPLE_50} !important;
             border: 1px solid {PURPLE_100} !important;
+            color: {PRIMARY_ACTION} !important;
+        }}
+        div[data-testid="stAlertContentSuccess"] {{
+            background-color: transparent !important;
+            border: none !important;
             color: {PRIMARY_ACTION} !important;
         }}
         div[data-testid="stAlertContentSuccess"] p,
