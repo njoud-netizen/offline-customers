@@ -142,7 +142,7 @@ def _reason_card_body(state: dict, lang: str) -> str:
     pct = (count / total * 100) if total else 0.0
     meta = (
         f'{t("inbound_insight_call_count", lang).format(count=count)} · '
-        f'{t("inbound_insight_of_total", lang).format(pct=f"{pct:.0f}")}'
+        f'{t("inbound_insight_of_company_total", lang).format(pct=f"{pct:.0f}")}'
     )
     return f'<div class="maz-insight-value">{html.escape(name)}</div><div class="maz-insight-meta">{meta}</div>'
 
@@ -337,13 +337,16 @@ def inbound_call_page() -> None:
             # الشركة/السبب/الرقم الصحيحة لزر تحميل CSV *قبل* أن تُرسم ودجتات الـselectbox
             # فعليًا لاحقًا داخل _render_insight_section (بنفس المفاتيح، فبالتالي بنفس القيمة).
             insight_state = resolve_insight_state(result.rows)
-            company_filter = insight_state["company_filter"]
+            # company_table_filter (مو company_filter): الجدول/KPI العلوي يتفلتر بالشركة فقط
+            # لو المستخدم اختار شركة محددة صراحةً — بوضع "أكثر شركة" الافتراضي يبقى الإجمالي
+            # الحقيقي لكل الشركات (company_filter نفسه يبقى خاص فقط بنطاق بطاقتي الاستفسار/الرقم).
+            company_table_filter = insight_state["company_table_filter"]
             reason_table_filter = insight_state["reason_table_filter"]
             number_table_filter = insight_state["number_table_filter"]
 
             def _build_csv(phone_search: str) -> bytes:
                 csv_df, _, _, _ = compute_filtered(
-                    result.rows, lang, company_filter=company_filter, phone_search=phone_search,
+                    result.rows, lang, company_filter=company_table_filter, phone_search=phone_search,
                     reason_filter=reason_table_filter, number_filter=number_table_filter,
                 )
                 return csv_df.to_csv(index=False).encode("utf-8-sig")
@@ -361,7 +364,7 @@ def inbound_call_page() -> None:
                 )
 
             filtered_df, group_enabled, filter_state, df_with_date = compute_filtered(
-                result.rows, lang, company_filter=company_filter, phone_search=phone_search,
+                result.rows, lang, company_filter=company_table_filter, phone_search=phone_search,
                 reason_filter=reason_table_filter, number_filter=number_table_filter,
             )
 

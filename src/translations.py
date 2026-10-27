@@ -296,6 +296,7 @@ TRANSLATIONS = {
     "inbound_insight_reason_label": {"ar": "السبب:", "en": "Reason:"},
     "inbound_insight_no_reason": {"ar": "{count} مكالمة بدون سبب مسجَّل", "en": "{count} calls with no recorded reason"},
     "inbound_insight_of_total": {"ar": "{pct}% من الإجمالي", "en": "{pct}% of total"},
+    "inbound_insight_of_company_total": {"ar": "{pct}% من مكالمات الشركة", "en": "{pct}% of the company's calls"},
     "inbound_insight_times": {"ar": "×{count} مرة", "en": "×{count} times"},
     "inbound_insight_empty": {"ar": "لا توجد بيانات كافية", "en": "Not enough data"},
     "inbound_insight_calls_reason": {"ar": "مكالمات اليوم، السبب: {reason}", "en": "Today's calls, reason: {reason}"},

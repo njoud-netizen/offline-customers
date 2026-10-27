@@ -95,6 +95,13 @@ def resolve_insight_state(rows: list[dict]) -> dict:
     company_scoped_df = (
         df[df.get("company", "").astype(str).isin(company_filter)] if company_filter else df
     )
+    # الجدول/صف KPI العلوي يتفلتر بالشركة فقط لو اختار المستخدم شركة محددة صراحةً (مو أكثر
+    # شركة/كل الشركات) — نفس مبدأ reason_table_filter/number_table_filter أدناه بالضبط. بهذا
+    # "إجمالي المكالمات" بالوضع الافتراضي يبقى الإجمالي الحقيقي لكل الشركات، وبطاقة الشركة
+    # تعرض نسبتها *منه* (مو من نفسها) — لا تناقض بين البطاقة العلوية وبطاقة "أبرز المؤشرات".
+    company_table_filter = (
+        [company_choice] if company_choice not in (COMPANY_MODE_TOP, COMPANY_MODE_ALL) else []
+    )
 
     details_series = company_scoped_df.get("Details", pd.Series(dtype=str))
     reason_counts = details_series[details_series.astype(str).str.strip() != ""].value_counts()
@@ -137,6 +144,7 @@ def resolve_insight_state(rows: list[dict]) -> dict:
         "top_company": top_company,
         "company_choice": company_choice,
         "company_filter": company_filter,
+        "company_table_filter": company_table_filter,
         "company_scoped_df": company_scoped_df,
         "reason_options": reason_options,
         "reason_counts": reason_counts,
