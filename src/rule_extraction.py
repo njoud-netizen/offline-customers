@@ -166,7 +166,9 @@ def _branch_catalog_by_city(details_catalog: list[str]) -> dict:
 
 def resolve_employee_details(summary: str, details_catalog: list[str]) -> "str | None":
     """يرجع None لو المكالمة مو عن موظف أصلًا (classify_details العادي يكمل كالمعتاد). غير
-    كذا يرجع القيمة النهائية حسب القاعدة الثلاثية أعلاه."""
+    كذا يرجع دائمًا نص (قد يكون فاضي "") — أبدًا None — حسب القاعدة: فرع معروف وبالكتالوج ->
+    اسمه الحرفي؛ فرع مذكور (معروف أو لأ) لكن مو بالكتالوج -> "Branches"؛ بدون أي ذكر فرع ->
+    "" (خانة فاضية — "Employee" ممنوعة نهائيًا حتى لو موجودة بالقائمة، نفس service/website/job)."""
     if not is_employee_inquiry(summary):
         return None
 
@@ -185,14 +187,16 @@ def resolve_employee_details(summary: str, details_catalog: list[str]) -> "str |
                 break
 
     if mentioned_city is not None:
-        return branch_by_city.get(mentioned_city) or ("Branches" if "Branches" in details_catalog else None)
+        return branch_by_city.get(mentioned_city) or ("Branches" if "Branches" in details_catalog else "")
 
     # فرع مذكور لكن مدينته غير معروفة/غير موجودة بالكتالوج (مثال: "Dubai branch") — ما نقدر
-    # نحدد اسمه الحرفي، لكنه لسه "فرع مذكور" حسب القاعدة -> "Branches" العامة، مو "Employee".
+    # نحدد اسمه الحرفي، لكنه لسه "فرع مذكور" حسب القاعدة -> "Branches" العامة.
     if _BRANCH_WORD_RE.search(summary) or "فرع" in summary:
-        return "Branches" if "Branches" in details_catalog else None
+        return "Branches" if "Branches" in details_catalog else ""
 
-    return "Employee" if "Employee" in details_catalog else None
+    # موظف بدون أي ذكر فرع -> خانة فاضية (مو "Employee" — ممنوعة نهائيًا). الصف بالملف النهائي
+    # يحصل سطر "استفسار العميل: ..." بعمود Remark تلقائيًا (نفس آلية أي Details فاضية بالملف).
+    return ""
 
 
 # قاعدة عمل خاصة (طلب المستخدم): استفسار عام عن "مراتب/مرتبة" بدون تحديد نوع/موديل معيّن

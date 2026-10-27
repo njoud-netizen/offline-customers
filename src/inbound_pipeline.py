@@ -24,7 +24,7 @@ from .translate_helper import translate_to_arabic
 _DETAILS_OTHER = "Other"
 # قيم ممنوعة نهائيًا بعمود Details (طلب صريح) — تُستبعد من كتالوج المطابقة بالكامل، فلا يمكن
 # لأي مصنّف (rules أو Claude) اختيارها أصلًا، بغض النظر عن وجودها بالقائمة المنسدلة الحقيقية.
-_DETAILS_BANNED = {"service", "website", "job"}
+_DETAILS_BANNED = {"service", "website", "job", "employee"}
 
 
 @dataclass
