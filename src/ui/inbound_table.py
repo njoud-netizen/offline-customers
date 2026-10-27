@@ -386,7 +386,10 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
             cells = []
             for col in visible_cols_final:
                 if col == "Number":
-                    cells.append(f'<td dir="ltr">{html.escape(format_phone_display(r[col]))}</td>')
+                    cells.append(
+                        f'<td><bdi dir="ltr" style="unicode-bidi:isolate;">'
+                        f'{html.escape(format_phone_display(r[col]))}</bdi></td>'
+                    )
                 elif col == "Inbound calls/out bound calls":
                     cells.append(f"<td>{_call_type_html(r[col], lang)}</td>")
                 elif col == "Call Status":

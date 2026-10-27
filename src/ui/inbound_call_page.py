@@ -94,23 +94,37 @@ def _reason_option_label(value: str, lang: str) -> str:
     return str(value)
 
 
+# عزل ثنائي الاتجاه لنص خام (plain text، بلا HTML) — يُستخدم بخيارات st.selectbox وعناوين
+# البطاقات (تمر عبر html.escape لاحقًا فتكسر أي وسم HTML حقيقي) — LRI/PDI هي المكافئ النصي
+# الخالص لـ<bdi dir="ltr">...</bdi>، تعمل داخل أي نص عادي بدون أي رندر HTML.
+_LRI = "⁦"  # LEFT-TO-RIGHT ISOLATE
+_PDI = "⁩"  # POP DIRECTIONAL ISOLATE
+
+
+def _isolated_plain(value: str) -> str:
+    return f"{_LRI}{value}{_PDI}"
+
+
 def _number_card_title(choice: str, lang: str) -> str:
     if choice == NUMBER_MODE_TOP:
         return t("inbound_insight_top_number", lang)
-    return format_phone_display(choice)
+    return _isolated_plain(format_phone_display(choice))
 
 
 def _number_option_label(value: str, counts: "pd.Series[int]", lang: str) -> str:
     if value == NUMBER_MODE_TOP:
         return t("inbound_insight_top_number", lang)
     count = int(counts.get(value, 0))
-    return t("inbound_number_option_format", lang).format(number=format_phone_display(value), count=count)
+    return t("inbound_number_option_format", lang).format(
+        number=_isolated_plain(format_phone_display(value)), count=count,
+    )
 
 
 def _isolated_value(value: str) -> str:
     """يعزل قيمة لاتينية (رقم/تاريخ/اسم إنجليزي) عن انعكاس ثنائي الاتجاه بالنص العربي
-    المحيط بها (unicode-bidi: isolate)، بدون التأثير على القيمة نفسها."""
-    return f'<span dir="ltr" style="unicode-bidi:isolate;">{value}</span>'
+    المحيط بها — <bdi> هو العنصر المخصص لهذا الغرض بالضبط (أقوى من span+dir عمليًا مع أرقام
+    بادئة بـ"+")، مع unicode-bidi:isolate إضافيًا للتأكيد."""
+    return f'<bdi dir="ltr" style="unicode-bidi:isolate;">{value}</bdi>'
 
 
 def _company_card_body(state: dict, lang: str) -> str:
@@ -138,11 +152,19 @@ def _reason_card_body(state: dict, lang: str) -> str:
     if not name:
         return '<div class="maz-insight-meta">—</div>'
     count = int(state["reason_counts"].get(name, 0))
-    total = len(state["company_scoped_df"])
+    # "أكثر شركة"/"كل الشركات" -> النسبة من الإجمالي الحقيقي لكل الشركات؛ شركة محددة -> النسبة
+    # من مكالمات تلك الشركة فقط (الطلب الصريح). بوضع "كل الشركات" company_scoped_df أصلًا
+    # يساوي df الكامل (company_filter فاضي)، فالدنمينيتور نفسه بالحالتين سيان هناك.
+    if state["company_choice"] in (COMPANY_MODE_TOP, COMPANY_MODE_ALL):
+        total = len(state["df"])
+        pct_key = "inbound_insight_of_total"
+    else:
+        total = len(state["company_scoped_df"])
+        pct_key = "inbound_insight_of_company_total"
     pct = (count / total * 100) if total else 0.0
     meta = (
         f'{t("inbound_insight_call_count", lang).format(count=count)} · '
-        f'{t("inbound_insight_of_company_total", lang).format(pct=f"{pct:.0f}")}'
+        f'{t(pct_key, lang).format(pct=f"{pct:.0f}")}'
     )
     return f'<div class="maz-insight-value">{html.escape(name)}</div><div class="maz-insight-meta">{meta}</div>'
 

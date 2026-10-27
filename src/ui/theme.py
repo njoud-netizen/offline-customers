@@ -826,7 +826,7 @@ def inject_theme(lang: str) -> None:
         }}
         table.maz-table tbody tr:nth-child(even) {{ background: {PURPLE_50}; }}
         table.maz-table tbody tr:hover {{ background: {GRADIENT_SOFT}, var(--surface); }}
-        table.maz-table tbody td[dir="ltr"] {{ font-weight: 700; }}
+        table.maz-table tbody td[dir="ltr"], table.maz-table tbody td bdi {{ font-weight: 700; }}
         .maz-call-type {{ display: inline-flex; align-items: center; gap: 6px; }}
         .maz-call-type .material-symbols-outlined {{ color: {TEXT_MUTED}; font-size: 16px; }}
 
