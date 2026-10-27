@@ -45,21 +45,34 @@ _COL_WIDTH_CLASS = {
 }
 
 
+@st.cache_data(show_spinner=False)
+def _cached_translate_summary(summary_en: str) -> tuple[str, bool]:
+    """طبقة كاش إضافية (عبر إعادة التشغيلات/الجلسات بنفس عملية الخادم) فوق كاش الذاكرة
+    الداخلي بـtranslate_helper.py — نفس الملخص لا يُترجم مرتين إطلاقًا (طلب صريح). تُستدعى
+    فقط لصفوف الصفحة الحالية المعروضة فعليًا بالجدول (راجع render_table_body/build_*_table_html
+    أدناه) — لا تُستدعى أثناء معالجة الملف إطلاقًا."""
+    from src.translate_helper import translate_to_arabic_status
+    return translate_to_arabic_status(summary_en)
+
+
 def _build_remark_cell(meta: dict, lang: str) -> tuple[str, bool]:
     """يرجع (النص المعروض, هل تحتاج تمييز بصري كرسالة تحتاج انتباه). meta: _remark_meta من
-    inbound_pipeline.py — {"has_summary", "summary_en_full", "summary_ar_full",
-    "translation_ok", "needs_attention"}. طلب صريح: النص المعروض هو استفسار العميل الفعلي
-    الكامل دائمًا بدون استثناء — ممنوع أي جملة بديلة عامة (لا "استفسار عام" ولا غيرها). فاضي
-    فقط لو ما فيه ملخص مكالمة أصلًا بملف Maqsam."""
+    inbound_pipeline.py — {"has_summary", "summary_en_full", "needs_attention"} (الترجمة
+    العربية نفسها غير محسوبة مسبقًا — تحدث هنا فقط، عند الطلب الفعلي، لصف يُعرض فعليًا). طلب
+    صريح: النص المعروض هو استفسار العميل الفعلي الكامل دائمًا بدون استثناء — ممنوع أي جملة
+    بديلة عامة (لا "استفسار عام" ولا غيرها). فاضي فقط لو ما فيه ملخص مكالمة أصلًا بملف Maqsam."""
     if not isinstance(meta, dict) or not meta.get("has_summary"):
         return "", False
 
-    if lang == "ar" and meta.get("translation_ok", True):
-        text = str(meta.get("summary_ar_full", "")).strip()
+    summary_en = str(meta.get("summary_en_full", "")).strip()
+    if lang == "ar":
+        text, ok = _cached_translate_summary(summary_en)
+        if not ok:
+            # الترجمة فشلت فعليًا (مهلة/حصة يومية ناضبة/شبكة) -> الملخص الأصلي الإنجليزي
+            # كاملًا، بدون أي اقتطاع ولا جملة بديلة.
+            text = summary_en
     else:
-        # الترجمة فشلت فعليًا (أو الواجهة إنجليزي أصلًا) -> الملخص الأصلي الإنجليزي كاملًا،
-        # بدون أي اقتطاع ولا جملة بديلة.
-        text = str(meta.get("summary_en_full", "")).strip()
+        text = summary_en
 
     return text, bool(meta.get("needs_attention"))
 
