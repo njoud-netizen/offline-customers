@@ -55,26 +55,30 @@ def _cached_translate_summary(summary_en: str) -> tuple[str, bool]:
     return translate_to_arabic_status(summary_en)
 
 
-def _build_remark_cell(meta: dict, lang: str) -> tuple[str, bool]:
-    """يرجع (النص المعروض, هل تحتاج تمييز بصري كرسالة تحتاج انتباه). meta: _remark_meta من
-    inbound_pipeline.py — {"has_summary", "summary_en_full", "needs_attention"} (الترجمة
+def _build_remark_cell(meta: dict, lang: str) -> tuple[str, bool, bool]:
+    """يرجع (النص المعروض, هل تحتاج تمييز بصري كرسالة تحتاج انتباه, هل هو إنجليزي غير مترجم
+    بواجهة عربية — يحتاج dir="ltr" صريح بدل الاعتماد على auto وسط سياق RTL). meta: _remark_meta
+    من inbound_pipeline.py — {"has_summary", "summary_en_full", "needs_attention"} (الترجمة
     العربية نفسها غير محسوبة مسبقًا — تحدث هنا فقط، عند الطلب الفعلي، لصف يُعرض فعليًا). طلب
     صريح: النص المعروض هو استفسار العميل الفعلي الكامل دائمًا بدون استثناء — ممنوع أي جملة
     بديلة عامة (لا "استفسار عام" ولا غيرها). فاضي فقط لو ما فيه ملخص مكالمة أصلًا بملف Maqsam."""
     if not isinstance(meta, dict) or not meta.get("has_summary"):
-        return "", False
+        return "", False, False
 
     summary_en = str(meta.get("summary_en_full", "")).strip()
+    is_untranslated_english = False
     if lang == "ar":
         text, ok = _cached_translate_summary(summary_en)
         if not ok:
             # الترجمة فشلت فعليًا (مهلة/حصة يومية ناضبة/شبكة) -> الملخص الأصلي الإنجليزي
-            # كاملًا، بدون أي اقتطاع ولا جملة بديلة.
+            # كاملًا، بدون أي اقتطاع ولا جملة بديلة — طلب صريح: يبدأ من اليسار (LTR) حتى وسط
+            # صفحة عربية RTL، بدل الاعتماد على dir="auto".
             text = summary_en
+            is_untranslated_english = True
     else:
         text = summary_en
 
-    return text, bool(meta.get("needs_attention"))
+    return text, bool(meta.get("needs_attention")), is_untranslated_english
 
 
 def normalize_phone(raw: str) -> str:
@@ -361,7 +365,7 @@ def _repeat_callers_groups(filtered_df: pd.DataFrame) -> list[tuple[str, pd.Data
 
 def _last_note_for_group(group: pd.DataFrame, lang: str) -> str:
     row = group.sort_values("Date").iloc[-1] if "Date" in group.columns else group.iloc[-1]
-    note, _ = _build_remark_cell(row.get("_remark_meta"), lang)
+    note, _, _ = _build_remark_cell(row.get("_remark_meta"), lang)
     return note.strip()
 
 
@@ -385,12 +389,13 @@ def build_unclassified_table_html(df: pd.DataFrame, lang: str) -> str:
             f'{html.escape(format_phone_display(r["Number"]))}</bdi></td>'
         )
         company_cell = f'<td class="maz-col-company">{company_badge_html(r.get("company", ""))}</td>'
-        note, is_system = _build_remark_cell(r.get("_remark_meta"), lang)
+        note, is_system, is_en_fallback = _build_remark_cell(r.get("_remark_meta"), lang)
         note = note.strip()
         if note:
             escaped = html.escape(note)
             note_class = "maz-table-notes maz-table-notes-system" if is_system else "maz-table-notes"
-            note_cell = f'<td class="maz-col-remark"><span class="{note_class}" dir="auto">{escaped}</span></td>'
+            note_dir = "ltr" if is_en_fallback else "auto"
+            note_cell = f'<td class="maz-col-remark"><span class="{note_class}" dir="{note_dir}">{escaped}</span></td>'
         else:
             note_cell = '<td class="maz-col-remark"><span class="maz-table-dash">—</span></td>'
         rows_html.append(f"<tr>{number_cell}{company_cell}{note_cell}</tr>")
@@ -558,20 +563,21 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
                 elif col == "Details":
                     cells.append(f'<td class="{col_class}">{details_badge_html(r[col])}</td>')
                 elif col == "Remark":
-                    note, is_system = _build_remark_cell(r.get("_remark_meta"), lang)
+                    note, is_system, is_en_fallback = _build_remark_cell(r.get("_remark_meta"), lang)
                     note = note.strip()
+                    note_dir = "ltr" if is_en_fallback else "auto"
                     if note:
                         escaped = html.escape(note)
                         if is_system:
                             cells.append(
                                 f'<td class="{col_class}"><span class="maz-table-notes-wrap">'
                                 f'<span class="material-symbols-outlined maz-table-notes-icon">warning</span>'
-                                f'<span class="maz-table-notes maz-table-notes-system" dir="auto" '
+                                f'<span class="maz-table-notes maz-table-notes-system" dir="{note_dir}" '
                                 f'title="{escaped}">{escaped}</span></span></td>'
                             )
                         else:
                             cells.append(
-                                f'<td class="{col_class}"><span class="maz-table-notes" dir="auto" '
+                                f'<td class="{col_class}"><span class="maz-table-notes" dir="{note_dir}" '
                                 f'title="{escaped}">{escaped}</span></td>'
                             )
                     else:
