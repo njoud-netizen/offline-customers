@@ -323,6 +323,24 @@ TRANSLATIONS = {
     "inbound_table_col_count": {"ar": "عدد المكالمات", "en": "Call Count"},
     "inbound_table_no_results": {"ar": "لا توجد مكالمات تطابق الفلاتر المحددة.", "en": "No calls match the selected filters."},
     "inbound_table_page_caption": {"ar": "صفحة {current} من {total}", "en": "Page {current} of {total}"},
+    # أسهم تنقل خاصة بجدول Inbound Call فقط (مختلفة عن table_prev_page/table_next_page
+    # المشتركة مع data_table.py — لا تغيّرها هناك) — اتجاه عربي معكوس متعمَّد حسب الطلب.
+    "inbound_table_prev_page": {"ar": "► السابق", "en": "◄ Previous"},
+    "inbound_table_next_page": {"ar": "التالي ◄", "en": "Next ►"},
+
+    # ==== عمود الملاحظات بالجدول — رسائل نظام (review) تُبنى من بنية (key, قيمة إضافية) عشان
+    # تُترجم حسب لغة الواجهة؛ استفسار العميل (inquiry) يُترجم لحظيًا أو يُستبدل برسالة عامة
+    # لو فشلت الترجمة فعليًا (translation_ok=False) — راجع inbound_pipeline.py/inbound_table.py. ====
+    "inbound_remark_complaint": {
+        "ar": "⚠️ شكوى محتملة لوزارة التجارة — تحتاج انتباه فوري",
+        "en": "⚠️ Possible Ministry of Commerce complaint — needs immediate attention",
+    },
+    "inbound_remark_invalid_phone": {"ar": "رقم غير صالح ({reason})", "en": "Invalid phone number"},
+    "inbound_remark_unresolved_brand": {
+        "ar": "براند غير محلول من maqsam_line_aliases: '{brand}'",
+        "en": "Unresolved brand from maqsam_line_aliases: '{brand}'",
+    },
+    "inbound_remark_generic_inquiry": {"ar": "استفسار عام — راجع التسجيل", "en": "General inquiry — check the recording"},
 }
 
 

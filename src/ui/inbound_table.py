@@ -28,30 +28,50 @@ from .empty_state import render_empty_state
 from .phone_format import format_phone_display
 
 PAGE_SIZE = 25
-# نوع المكالمة/حالة المكالمة حُذفا من العرض فقط (كل القيم نفسها بهذي الصفحة) — يبقيان بملف
-# CSV المحمّل لأن التصدير يستخدم filtered_df الكامل مباشرة، غير مرتبط بـ_DISPLAY_COLS إطلاقًا.
-_DISPLAY_COLS = ["Date", "Number", "company", "Details", "Remark"]
+# التاريخ محذوف من العرض (الملف كله يوم واحد، والتاريخ أصلًا بعنوان الصفحة) — يبقى بملف CSV
+# المحمّل (التصدير يستخدم filtered_df الكامل مباشرة، غير مرتبط بـ_DISPLAY_COLS إطلاقًا). نفس
+# الشيء لنوع/حالة المكالمة (محذوفان من العرض فقط، كل القيم نفسها بهذي الصفحة).
+_DISPLAY_COLS = ["Number", "company", "Details", "Remark"]
 _SESSION_PAGE_KEY = "inbound_table_page"
 _SESSION_SHOW_ALL_COLS_KEY = "inbound_table_show_all_cols"
 # عرض ثابت لكل عمود (بالـclass، لا nth-child، حتى يبقى صحيح بغض النظر عن ترتيب/إخفاء
 # الأعمدة الفعلي) — الملاحظات تاخذ الباقي عبر width:auto بوضع table-layout:fixed بـtheme.py.
 _COL_WIDTH_CLASS = {
-    "Date": "maz-col-date",
     "Number": "maz-col-number",
     "company": "maz-col-company",
     "Details": "maz-col-details",
     "Remark": "maz-col-remark",
 }
-# بادئة تُحذف من عرض الجدول فقط (تبقى بملف الإخراج/الشيت كما هي — سياق إضافي مفيد هناك، لكنها
-# زائدة هنا لأن عنوان العمود نفسه "الملاحظات" يوضّح السياق أصلًا).
-_REMARK_DISPLAY_PREFIX = "استفسار العميل: "
 
 
-def _remark_display(raw: str) -> str:
-    text = str(raw or "").strip()
-    if text.startswith(_REMARK_DISPLAY_PREFIX):
-        text = text[len(_REMARK_DISPLAY_PREFIX):].strip()
-    return text
+def _build_remark_cell(meta: dict, lang: str) -> tuple[str, bool]:
+    """يرجع (النص المعروض, هل هي رسالة نظام مميزة بدل سؤال عميل عادي). meta: _remark_meta
+    من inbound_pipeline.py — {"kind": "review"|"inquiry"|"", "review_flags": [...],
+    "summary_en", "summary_ar", "translation_ok"}. راجع inbound_pipeline.py للبنية الكاملة."""
+    if not isinstance(meta, dict):
+        return "", False
+
+    kind = meta.get("kind", "")
+    if kind == "review":
+        parts = []
+        for key, extra in meta.get("review_flags", []) or []:
+            if key == "complaint":
+                parts.append(t("inbound_remark_complaint", lang))
+            elif key == "invalid_phone":
+                parts.append(t("inbound_remark_invalid_phone", lang).format(reason=extra or ""))
+            elif key == "unresolved_brand":
+                parts.append(t("inbound_remark_unresolved_brand", lang).format(brand=extra or ""))
+        return " | ".join(parts), True
+
+    if kind == "inquiry":
+        if lang == "ar":
+            if meta.get("translation_ok", True):
+                return str(meta.get("summary_ar", "")).strip(), False
+            return t("inbound_remark_generic_inquiry", "ar"), False
+        text = str(meta.get("summary_en", "")).strip()
+        return (text or t("inbound_remark_generic_inquiry", "en")), False
+
+    return "", False
 
 
 def normalize_phone(raw: str) -> str:
@@ -331,6 +351,7 @@ def _group_rows(df: pd.DataFrame) -> pd.DataFrame:
             "Call Status": ("Call Status", "first"),
             "Details": ("Details", _first_non_empty),
             "Remark": ("Remark", _first_non_empty),
+            "_remark_meta": ("_remark_meta", "first"),
             "call_count": ("Number", "count"),
         }
     )
@@ -383,7 +404,7 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
 
         nav_prev, nav_caption, nav_next, nav_csv = st.columns([0.7, 1.4, 0.7, 1.2])
         with nav_prev:
-            if st.button(t("table_prev_page", lang), disabled=page <= 0, use_container_width=True, key="inbound_prev_page"):
+            if st.button(t("inbound_table_prev_page", lang), disabled=page <= 0, use_container_width=True, key="inbound_prev_page"):
                 st.session_state[_SESSION_PAGE_KEY] -= 1
                 st.rerun()
         with nav_caption:
@@ -393,7 +414,7 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
                 unsafe_allow_html=True,
             )
         with nav_next:
-            if st.button(t("table_next_page", lang), disabled=page >= total_pages - 1, use_container_width=True, key="inbound_next_page"):
+            if st.button(t("inbound_table_next_page", lang), disabled=page >= total_pages - 1, use_container_width=True, key="inbound_next_page"):
                 st.session_state[_SESSION_PAGE_KEY] += 1
                 st.rerun()
         with nav_csv:
@@ -428,13 +449,22 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
                 elif col == "Details":
                     cells.append(f'<td class="{col_class}">{details_badge_html(r[col])}</td>')
                 elif col == "Remark":
-                    note = _remark_display(r[col])
+                    note, is_system = _build_remark_cell(r.get("_remark_meta"), lang)
+                    note = note.strip()
                     if note:
                         escaped = html.escape(note)
-                        cells.append(
-                            f'<td class="{col_class}"><span class="maz-table-notes" dir="auto" '
-                            f'title="{escaped}">{escaped}</span></td>'
-                        )
+                        if is_system:
+                            cells.append(
+                                f'<td class="{col_class}"><span class="maz-table-notes-wrap">'
+                                f'<span class="material-symbols-outlined maz-table-notes-icon">warning</span>'
+                                f'<span class="maz-table-notes maz-table-notes-system" dir="auto" '
+                                f'title="{escaped}">{escaped}</span></span></td>'
+                            )
+                        else:
+                            cells.append(
+                                f'<td class="{col_class}"><span class="maz-table-notes" dir="auto" '
+                                f'title="{escaped}">{escaped}</span></td>'
+                            )
                     else:
                         cells.append(f'<td class="{col_class}"><span class="maz-table-dash">—</span></td>')
                 elif col == "call_count":
