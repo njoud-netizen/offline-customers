@@ -390,9 +390,6 @@ def inbound_call_page() -> None:
             )
             st.warning(t("inbound_unmatched_values_warning", lang).format(items=items))
 
-        if result.agent_ai_missing:
-            st.warning(t("inbound_agent_ai_missing_warning", lang))
-
         if not result.rows:
             st.success(t("inbound_success_processed", lang))
             render_empty_state(t("inbound_warning_no_rows", lang))

@@ -297,10 +297,6 @@ TRANSLATIONS = {
         "ar": "قيم غير موجودة في القوائم: {items}",
         "en": "Values not found in the dropdown lists: {items}",
     },
-    "inbound_agent_ai_missing_warning": {
-        "ar": "قيمة AI غير موجودة في قائمة Agent",
-        "en": "The value 'AI' was not found in the Agent dropdown list",
-    },
     "inbound_last_call_label": {"ar": "آخر اتصال:", "en": "Last call:"},
     "inbound_insight_company_label": {"ar": "الشركة:", "en": "Company:"},
     "inbound_insight_reason_label": {"ar": "السبب:", "en": "Reason:"},

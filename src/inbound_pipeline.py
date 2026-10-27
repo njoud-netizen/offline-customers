@@ -35,7 +35,6 @@ class InboundImportResult:
     highlight_flags: list = field(default_factory=list)  # بنفس طول/ترتيب rows — True = شكوى محتملة
     unmatched_values: list = field(default_factory=list)  # {"column","raw_value"} — خانات تُركت فاضية لعدم تطابق القائمة
     translation_failures: int = 0  # عدد مرات فشلت فيها ترجمة ملخص المكالمة فعليًا (تشخيص)
-    agent_ai_missing: bool = False  # True = قيمة "AI" غير موجودة بقائمة Agent المنسدلة الحقيقية
 
 
 def _format_date(dt) -> str:
@@ -76,32 +75,26 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
     agent_signals = call_import_cfg.get("agent_sentence_signals", [])
     no_request_signals = call_import_cfg.get("no_customer_request_signals", [])
 
-    progress("قراءة القوائم المنسدلة الحية من شيت المزروع (company/Region/Details/Agent)...")
+    progress("قراءة القوائم المنسدلة الحية من شيت المزروع (company/Region/Details)...")
     try:
         live_lists = fetch_dropdown_lists(
             credentials_path=str(credentials_path(cfg)),
             spreadsheet_id=google_cfg["spreadsheet_id"],
             tabs_cfg=google_cfg["tabs"],
-            column_names=["company", "Region", "Details", "Agent"],
+            column_names=["company", "Region", "Details"],
         )
     except Exception as e:
         progress(f"[تحذير] تعذّر قراءة القوائم المنسدلة الحية ({e}) — سيُستخدم احتياطي محدود "
-                 f"(company فقط من config.yaml، و Region/Details/Agent فاضية غالبًا).")
+                 f"(company فقط من config.yaml، و Region/Details فاضية غالبًا).")
         live_lists = {}
 
     company_values = live_lists.get("company") or list(brand_dictionary.keys())
     region_values = live_lists.get("Region") or []
     details_values_raw = live_lists.get("Details") or call_import_cfg.get("details_catalog", [])
     details_catalog_clean = _clean_details_catalog(details_values_raw)
-    agent_values = live_lists.get("Agent") or []
-    # طلب صريح: كل صف جديد يكتب "AI" بعمود Agent (الكتابة الحرفية كما بالقائمة المنسدلة
-    # الحقيقية، مطابقة بدون حساسية لحالة الأحرف/المسافات via match_literal) — بدل اسم الموظفة
-    # الفعلي من ملف Maqsam. لو "AI" غير موجودة بالقائمة أصلًا، تبقى الخانة فاضية لكل الصفوف
-    # وتُطلَق تحذير صريح (agent_ai_missing أدناه) بدل اختراع القيمة.
-    agent_ai_literal = match_literal("AI", agent_values) if agent_values else ""
-    agent_ai_missing = not agent_ai_literal
-    if agent_ai_missing:
-        progress("[تحذير] قيمة AI غير موجودة في قائمة Agent — عمود Agent سيبقى فاضيًا لكل الصفوف.")
+    # طلب صريح: كل صف جديد يكتب "AI" حرفيًا بعمود Agent، بدون أي تحقق من القائمة المنسدلة
+    # (بدل اسم الموظفة الفعلي من ملف Maqsam).
+    agent_ai_literal = "AI"
 
     progress("قراءة ملف تصدير Maqsam...")
     t0 = time.perf_counter()
@@ -290,5 +283,5 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
     return InboundImportResult(
         rows=rows, needs_review=needs_review, summary=summary,
         output_path=output_path, highlight_flags=highlight_flags,
-        unmatched_values=unmatched_values, agent_ai_missing=agent_ai_missing,
+        unmatched_values=unmatched_values,
     )
