@@ -358,6 +358,89 @@ call_import:
     - "website"
     - "Working Hours"
 
+  # محرك تصنيف عام مدفوع بالكامل من هذا الملف (طلب صريح: أي تصنيف جديد يُضاف هنا يشتغل بدون أي
+  # تعديل كود). كل مفتاح: اسم تصنيف (لازم يطابق قيمة حرفية بـdetails_catalog أعلاه/القائمة
+  # المنسدلة الحية)، والقيمة: كلمات/عبارات مفتاحية (عربي/إنجليزي) — أي واحدة منها تظهر بنص
+  # العميل (بعد استبعاد كلام الموظف/الوكيل — انظر agent_sentence_signals أدناه) تُفعّل هذا
+  # التصنيف فورًا. الأولوية حسب ترتيب ظهور المفاتيح هنا (الأعلى أولًا)، وتُفحص قبل أي تصنيف عام
+  # آخر (classify_details بـrule_extraction.py).
+  keyword_classifiers:
+    Advertisement:
+      - "marketing management"
+      - "social media management"
+      - "offer marketing"
+      - "offering marketing"
+      - "marketing services"
+      - "advertising services"
+      - "advertising agency"
+      - "marketing agency"
+      - "digital marketing"
+      - "offer advertising"
+      - "offering advertising"
+      - "offer to advertise"
+      - "offering to advertise"
+      - "wants to offer"
+      - "offered to provide services"
+      - "proposed a partnership"
+      - "proposed a collaboration"
+      - "collaboration proposal"
+      - "partnership proposal"
+      - "offer their services"
+      - "offering their services"
+      - "offer our services"
+      - "offering our services"
+      - "seo services"
+      - "promote your"
+      - "promotion services"
+      - "sponsorship"
+      - "cold call"
+    "Job Email":
+      - "job"
+      - "jobs"
+      - "توظيف"
+      - "سيرة ذاتية"
+    "Working Hours":
+      - "working hours"
+      - "opening hours"
+      - "business hours"
+      - "open"
+      - "opening"
+      - "close"
+      - "closing"
+      - "timing"
+      - "what time"
+      - "store hours"
+      - "showroom hours"
+      - "أوقات العمل"
+      - "أوقات الدوام"
+      - "ساعات العمل"
+      - "الدوام"
+      - "متى تفتحون"
+      - "متى تقفلون"
+      - "مفتوح"
+      - "مسكر"
+      - "وقت المعرض"
+
+  # جمل منسوبة للموظف/الوكيل (لا للعميل) — أي جملة بالملخص تحتوي إحدى هذي العبارات تُستبعد
+  # بالكامل من نص التصنيف (customer_text) قبل أي مطابقة كلمات مفتاحية (طلب صريح: التصنيف حسب
+  # طلب العميل فقط، مو كلام الموظف).
+  agent_sentence_signals:
+    - "offered help with"
+    - "the agent offered"
+    - "presented options"
+    - "عرضت المساعدة"
+    - "قدمت الخيارات"
+    - "قدّم الموظف"
+
+  # إشارات إلى إن المكالمة ما فيها طلب فعلي من العميل (ما رد/ما طلب شي/انقطعت) — إذا ظهرت
+  # بالملخص، تبقى خانة Details فاضية دومًا (الملاحظة/Remark تبقى كما هي وتعرض الملخص الفعلي).
+  no_customer_request_signals:
+    - "no response from the customer"
+    - "no request was made"
+    - "the call ended"
+    - "لم يكن هناك أي رد"
+    - "لم يطرح أي طلب"
+
 phone:
   # الصيغة النهائية الصحيحة لرقم جوال سعودي بعد التطبيع: 966 + 5 + 8 أرقام = 12 رقم إجمالًا
   # (مثال: 966564104141). تنبيه: طلب المستخدم الأصلي ذكر "13 رقم" وهذا خطأ عد بسيط على الأغلب،

@@ -14,7 +14,7 @@ from .maqsam_import import extract_inbound_records, load_maqsam_export
 from .report import write_inbound_report
 from .rule_extraction import (
     extract_call_fields_rule_based,
-    is_job_application_inquiry,
+    extract_customer_text,
     resolve_employee_details,
 )
 from .sheet_dropdowns import fetch_dropdown_lists
@@ -57,6 +57,7 @@ class InboundImportResult:
     highlight_flags: list = field(default_factory=list)  # بنفس طول/ترتيب rows — True = شكوى محتملة
     unmatched_values: list = field(default_factory=list)  # {"column","raw_value"} — خانات تُركت فاضية لعدم تطابق القائمة
     translation_failures: int = 0  # عدد مرات فشلت فيها ترجمة ملخص المكالمة فعليًا (تشخيص)
+    agent_ai_missing: bool = False  # True = قيمة "AI" غير موجودة بقائمة Agent المنسدلة الحقيقية
 
 
 def _format_date(dt) -> str:
@@ -93,24 +94,36 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
     call_import_cfg = cfg["call_import"]
     city_aliases = cfg.get("city_aliases", {})
     company_aliases = {name: c.get("sheet_aliases", []) for name, c in brand_dictionary.items()}
+    keyword_classifiers = call_import_cfg.get("keyword_classifiers", {})
+    agent_signals = call_import_cfg.get("agent_sentence_signals", [])
+    no_request_signals = call_import_cfg.get("no_customer_request_signals", [])
 
-    progress("قراءة القوائم المنسدلة الحية من شيت المزروع (company/Region/Details)...")
+    progress("قراءة القوائم المنسدلة الحية من شيت المزروع (company/Region/Details/Agent)...")
     try:
         live_lists = fetch_dropdown_lists(
             credentials_path=str(credentials_path(cfg)),
             spreadsheet_id=google_cfg["spreadsheet_id"],
             tabs_cfg=google_cfg["tabs"],
-            column_names=["company", "Region", "Details"],
+            column_names=["company", "Region", "Details", "Agent"],
         )
     except Exception as e:
         progress(f"[تحذير] تعذّر قراءة القوائم المنسدلة الحية ({e}) — سيُستخدم احتياطي محدود "
-                 f"(company فقط من config.yaml، و Region/Details فاضية غالبًا).")
+                 f"(company فقط من config.yaml، و Region/Details/Agent فاضية غالبًا).")
         live_lists = {}
 
     company_values = live_lists.get("company") or list(brand_dictionary.keys())
     region_values = live_lists.get("Region") or []
     details_values_raw = live_lists.get("Details") or call_import_cfg.get("details_catalog", [])
     details_catalog_clean = _clean_details_catalog(details_values_raw)
+    agent_values = live_lists.get("Agent") or []
+    # طلب صريح: كل صف جديد يكتب "AI" بعمود Agent (الكتابة الحرفية كما بالقائمة المنسدلة
+    # الحقيقية، مطابقة بدون حساسية لحالة الأحرف/المسافات via match_literal) — بدل اسم الموظفة
+    # الفعلي من ملف Maqsam. لو "AI" غير موجودة بالقائمة أصلًا، تبقى الخانة فاضية لكل الصفوف
+    # وتُطلَق تحذير صريح (agent_ai_missing أدناه) بدل اختراع القيمة.
+    agent_ai_literal = match_literal("AI", agent_values) if agent_values else ""
+    agent_ai_missing = not agent_ai_literal
+    if agent_ai_missing:
+        progress("[تحذير] قيمة AI غير موجودة في قائمة Agent — عمود Agent سيبقى فاضيًا لكل الصفوف.")
 
     progress("قراءة ملف تصدير Maqsam...")
     t0 = time.perf_counter()
@@ -133,6 +146,9 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
         extracted = extract_call_fields_rule_based(
             records,
             details_catalog=details_catalog_clean,
+            keyword_classifiers=keyword_classifiers,
+            agent_signals=agent_signals,
+            no_request_signals=no_request_signals,
             on_progress=progress,
         )
     progress(f"انتهى الاستخراج. (استغرق {time.perf_counter() - t0:.2f} ثانية)")
@@ -155,23 +171,22 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
         name = fields.get("customer_name", "")
         city_raw = fields.get("city", "")
         details_raw = fields.get("details", "")
+        details_priority = bool(fields.get("details_priority", False))
         is_complaint = bool(fields.get("flag_commerce_complaint", False))
         if is_complaint:
             complaint_count += 1
 
-        # قاعدة الموظف (أولوية فوق التصنيف العام): فرع مذكور وبالكتالوج -> اسم الفرع، فرع
-        # مذكور ومو بالكتالوج -> "Branches"، بدون فرع مذكور -> "Employee". None = المكالمة
-        # أصلًا مو عن موظف، فيكمل التصنيف العادي أدناه بلا تغيير.
-        if r.call_summary:
-            employee_override = resolve_employee_details(r.call_summary, details_catalog_clean)
+        # قاعدة الموظف (أولوية فوق التصنيف العام فقط — لا تتجاوز أي تصنيف ذو أولوية مُقرَّر
+        # مسبقًا بـextract_call_fields_rule_based مثل Advertisement/Job Email/Working Hours أو
+        # خانة فاضية إجبارية بسبب is_no_customer_request): فرع مذكور وبالكتالوج -> اسم الفرع،
+        # فرع مذكور ومو بالكتالوج -> "Branches"، بدون فرع مذكور -> خانة فاضية. None = المكالمة
+        # أصلًا مو عن موظف، فيكمل التصنيف العادي بلا تغيير. نفس تصفية نص العميل (بدون كلام
+        # الموظف/الوكيل) تُستخدم هنا كذلك — طلب صريح: التصنيف حسب طلب العميل فقط.
+        if r.call_summary and not details_priority:
+            customer_text = extract_customer_text(r.call_summary, agent_signals)
+            employee_override = resolve_employee_details(customer_text, details_catalog_clean)
             if employee_override is not None:
                 details_raw = employee_override
-
-        # فرض "Job Email" فورًا لو المكالمة عن وظيفة/توظيف — أولوية فوق أي تصنيف آخر (نفس منطق
-        # Advertisement/vendor-pitch)، يمنع "job" الحرفية (قيمة خاطئة منفصلة بالقائمة الحقيقية)
-        # من الوصول للشيت نهائيًا — القيمة المكتوبة دائمًا "Job Email" أو فاضية.
-        if r.call_summary and is_job_application_inquiry(r.call_summary) and "Job Email" in details_catalog_clean:
-            details_raw = "Job Email"
 
         # مطابقة نهائية ضد القائمة المنسدلة الحية — القيمة المكتوبة حرفيًا كما بالشيت الحقيقي
         # (حتى لو فيها مسافات زائدة)، وإلا فاضية. "Other" = لم يطابق المصنّف أي قيمة من الأساس.
@@ -271,7 +286,7 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
             "Satisfied/or not": "",
             "How did you hear about us": "",
             "Remark": remark,
-            "Agent": r.agent,
+            "Agent": agent_ai_literal,
             # Show Room بالشيت الحقيقي قائمة فروع دقيقة جدًا (مثال: "BQ Riyadh - Rowdah") لا علاقة
             # لها بالمدينة العامة — لا منطق استخراج حاليًا يحدد الفرع الدقيق، فتبقى فاضية دومًا
             # بدل كتابة مدينة عامة فيها (كانت تُكتب هنا سابقًا بالغلط، وهذا سبب المثلث الأحمر).
@@ -322,4 +337,5 @@ def run_inbound_import(file, cfg: dict, on_progress: Optional[Callable[[str], No
         rows=rows, needs_review=needs_review, summary=summary,
         output_path=output_path, highlight_flags=highlight_flags,
         unmatched_values=unmatched_values, translation_failures=translation_failures,
+        agent_ai_missing=agent_ai_missing,
     )

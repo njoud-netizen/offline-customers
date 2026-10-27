@@ -30,6 +30,8 @@ class KPICardData:
     progress_pct: float | None = None  # 0-100 — شريط تقدم (مثال: نسبة "تمت الخدمة")
     sub_line: str | None = None  # سطر فرعي صغير تحت القيمة (مثال: "N رقم اتصل أكثر من مرة")
     value_color: str | None = None  # تجاوز لون القيمة الافتراضي (مثال: #5B21B6 لبطاقة "تمت الخدمة")
+    view_link_label: str | None = None  # لو موجود: البطاقة كلها قابلة للضغط + رابط نصي صغير تحت sub_line
+    view_link_key: str | None = None  # مفتاح الزر الحقيقي (st.button) المرسوم فوق البطاقة بالكامل (overlay)
 
 
 def _sparkline_chart(df: pd.DataFrame) -> alt.Chart:
@@ -54,9 +56,14 @@ def _delta_html(delta_pct: float | None) -> str:
     return f'<div class="maz-kpi-delta" style="color:{color};">{arrow} {delta_pct:+.1f}%</div>'
 
 
-def render_kpi_row(cards: list[KPICardData]) -> None:
+def render_kpi_row(cards: list[KPICardData]) -> "str | None":
+    """يرسم صف البطاقات، ويرجع view_link_key للبطاقة اللي ضُغط رابطها بهذي التشغيلة (أو None).
+    البطاقات اللي فيها view_link_label/view_link_key تصير كلها قابلة للضغط (st.button حقيقي
+    بلا نص، يُموضَع بالـCSS فوق كامل مساحة البطاقة شفافًا — راجع .maz-kpi-view-overlay بـtheme.py)
+    بجانب رابط نصي صغير مرئي تحت sub_line."""
     if not cards:
-        return
+        return None
+    clicked_key = None
     cols = st.columns(len(cards))
     for i, (col, card) in enumerate(zip(cols, cards)):
         with col:
@@ -73,6 +80,10 @@ def render_kpi_row(cards: list[KPICardData]) -> None:
                         f"</div>"
                     )
                 sub_line_html = f'<div class="maz-kpi-subline">{card.sub_line}</div>' if card.sub_line else ""
+                view_link_html = (
+                    f'<div class="maz-kpi-view-link">{card.view_link_label}</div>'
+                    if card.view_link_label else ""
+                )
                 value_style = f' style="color:{card.value_color};"' if card.value_color else ""
                 card_html = (
                     f'<div class="maz-kpi-inner"{title_attr}>'
@@ -81,8 +92,13 @@ def render_kpi_row(cards: list[KPICardData]) -> None:
                     f"{_delta_html(card.delta_pct)}"
                     f"{progress_html}"
                     f"{sub_line_html}"
+                    f"{view_link_html}"
                     f"</div>"
                 )
                 st.markdown(card_html, unsafe_allow_html=True)
                 if card.sparkline_df is not None and not card.sparkline_df.empty and len(card.sparkline_df) > 1:
                     st.altair_chart(_sparkline_chart(card.sparkline_df), use_container_width=True)
+                if card.view_link_label and card.view_link_key:
+                    if st.button("", key=card.view_link_key):
+                        clicked_key = card.view_link_key
+    return clicked_key

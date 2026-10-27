@@ -235,6 +235,7 @@ TRANSLATIONS = {
     # ==== صفحة Inbound Call — القشرة الجديدة ====
     "inbound_subtitle_with_date": {"ar": "سجل المكالمات الواردة · {date}", "en": "Inbound call log · {date}"},
     "inbound_download_csv_label": {"ar": "تحميل CSV", "en": "Download CSV"},
+    "inbound_export_csv_tooltip": {"ar": "تصدير CSV", "en": "Export CSV"},
     "inbound_kpi_serviced": {"ar": "تمت الخدمة", "en": "Serviced"},
     "inbound_kpi_total_sub": {"ar": "كلها واردة", "en": "All inbound"},
     "inbound_kpi_repeat_callers": {"ar": "أرقام اتصلت أكثر من مرة", "en": "Numbers that called more than once"},
@@ -242,6 +243,11 @@ TRANSLATIONS = {
     "inbound_kpi_repeat_callers_zero": {"ar": "ما فيه أرقام مكررة", "en": "No repeated numbers"},
     "inbound_kpi_unclassified": {"ar": "مكالمات بدون تصنيف", "en": "Unclassified calls"},
     "inbound_kpi_unclassified_sub": {"ar": "{pct}% من المكالمات ما انكتب لها سبب", "en": "{pct}% of calls have no recorded reason"},
+    "inbound_kpi_view_link": {"ar": "عرض المكالمات ←", "en": "View calls →"},
+    "inbound_dialog_unclassified_title": {"ar": "مكالمات بدون تصنيف ({count})", "en": "Unclassified calls ({count})"},
+    "inbound_dialog_repeat_title": {"ar": "أرقام اتصلت أكثر من مرة ({count})", "en": "Numbers that called more than once ({count})"},
+    "inbound_dialog_col_last_note": {"ar": "آخر ملاحظة", "en": "Last note"},
+    "inbound_dialog_empty": {"ar": "لا توجد نتائج حسب الفلاتر الحالية.", "en": "No results match the current filters."},
 
     # ==== بحث/فلتر الشركة بالهيدر ====
     "inbound_header_search_label": {"ar": "بحث برقم الجوال", "en": "Search by phone number"},
@@ -290,6 +296,10 @@ TRANSLATIONS = {
     "inbound_unmatched_values_warning": {
         "ar": "قيم غير موجودة في القوائم: {items}",
         "en": "Values not found in the dropdown lists: {items}",
+    },
+    "inbound_agent_ai_missing_warning": {
+        "ar": "قيمة AI غير موجودة في قائمة Agent",
+        "en": "The value 'AI' was not found in the Agent dropdown list",
     },
     "inbound_last_call_label": {"ar": "آخر اتصال:", "en": "Last call:"},
     "inbound_insight_company_label": {"ar": "الشركة:", "en": "Company:"},

@@ -64,36 +64,49 @@ def _tokenize(text: str) -> set:
     return {_singularize(w.lower()) for w in _WORD_RE.findall(text)}
 
 
-# قاعدة عمل خاصة (طلب المستخدم): إذا المتصل هو من يعرض خدمات على الشركة (تسويق/إدارة سوشيال
-# ميديا/إعلانات...) وليس عميل يسأل عن منتج، يُصنَّف "Advertisement" مباشرة — أولوية فوق أي
-# تصنيف عام آخر، حتى لو ما وُجدت كلمة "Advertisement" حرفيًا بالنص.
-_VENDOR_PITCH_SIGNALS = [
-    "marketing management", "social media management", "offer marketing",
-    "offering marketing", "marketing services", "advertising services",
-    "advertising agency", "marketing agency", "digital marketing",
-    "offer advertising", "offering advertising", "offer to advertise",
-    "offering to advertise", "wants to offer", "offered to provide services",
-    "proposed a partnership", "proposed a collaboration", "collaboration proposal",
-    "partnership proposal", "offer their services", "offering their services",
-    "offer our services", "offering our services", "seo services",
-    "promote your", "promotion services", "sponsorship", "cold call",
-]
+# محرك تصنيف عام مدفوع بالكامل من config.yaml (call_import.keyword_classifiers) — طلب صريح:
+# أي تصنيف جديد يُضاف بالملف يشتغل بدون أي تعديل كود. استبدل الدوال المتخصصة القديمة
+# (is_vendor_service_pitch/is_job_application_inquiry) اللي كانت بقوائم Python ثابتة هنا.
+def classify_by_keywords(customer_text: str, classifiers: dict) -> "str | None":
+    """يرجع اسم أول تصنيف (حسب ترتيب ظهور مفاتيح classifiers) إحدى كلماته المفتاحية ظهرت
+    بـcustomer_text (نص العميل فقط — بعد استبعاد كلام الموظف عبر extract_customer_text أدناه)،
+    أو None لو ما طابق أي تصنيف."""
+    if not customer_text or not classifiers:
+        return None
+    text_lower = customer_text.lower()
+    for target, keywords in classifiers.items():
+        for kw in keywords:
+            if str(kw).lower() in text_lower:
+                return target
+    return None
 
 
-def is_vendor_service_pitch(summary: str) -> bool:
+# جمل منسوبة للموظف/الوكيل (لا للعميل) تُستبعد من نص التصنيف قبل أي مطابقة كلمات مفتاحية —
+# طلب صريح: "التصنيف حسب طلب العميل فقط، مو كلام الموظف". تقسيم تقريبي عملي بالجملة (لا تحليل
+# نحوي حقيقي): أي جملة تحتوي إحدى عبارات agent_signals تُحذف بالكامل من النص المرسَل للمصنّفات.
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?؟؛])\s+|\n+")
+
+
+def extract_customer_text(summary: str, agent_signals: list) -> str:
+    """يرجع نص الملخص بعد حذف الجمل المنسوبة للموظف/الوكيل فقط. لو انحذفت كل الجمل (مطابقة
+    واسعة بالغلط) يرجع الملخص الأصلي كاملًا بدل نص فاضي يفسد التصنيف بالكامل."""
+    if not summary or not agent_signals:
+        return summary
+    sentences = _SENTENCE_SPLIT_RE.split(summary)
+    kept = [
+        sent for sent in sentences
+        if not any(str(sig).lower() in sent.lower() for sig in agent_signals)
+    ]
+    return " ".join(kept).strip() if kept else summary
+
+
+def is_no_customer_request(summary: str, signals: list) -> bool:
+    """طلب صريح: لو الملخص يقول إن العميل ما رد/ما طلب شي/انقطعت المكالمة، تبقى خانة Details
+    فاضية دائمًا (الملاحظة تبقى تعرض الملخص الفعلي كما هو — هذا الفحص لا يغيّرها)."""
+    if not summary or not signals:
+        return False
     text_lower = summary.lower()
-    return any(signal in text_lower for signal in _VENDOR_PITCH_SIGNALS)
-
-
-# قاعدة عمل خاصة (طلب المستخدم، القائمة النهائية): job/jobs/توظيف/سيرة ذاتية تُصنَّف "Job Email"
-# مباشرة دائمًا — أولوية فوق أي تصنيف آخر، وممنوع تُكتب القيمة الحرفية "job" نهائيًا (موجودة
-# بالقائمة المنسدلة الحقيقية كقيمة منفصلة خاطئة، يجب تفاديها دومًا لصالح "Job Email").
-_JOB_APPLICATION_SIGNALS = ["job", "jobs", "توظيف", "سيرة ذاتية"]
-
-
-def is_job_application_inquiry(summary: str) -> bool:
-    text_lower = summary.lower()
-    return any(signal in text_lower for signal in _JOB_APPLICATION_SIGNALS)
+    return any(str(sig).lower() in text_lower for sig in signals)
 
 
 # قاعدة عمل خاصة (طلب المستخدم): مكالمة فيها إشارة لشكوى/تهديد بشكوى لوزارة التجارة (أو جهة
@@ -231,9 +244,6 @@ def classify_details(summary: str, details_catalog: list[str]) -> str:
     if not summary:
         return ""
 
-    if is_vendor_service_pitch(summary) and "Advertisement" in details_catalog:
-        return "Advertisement"
-
     summary_lower = summary.lower()
     summary_words = _tokenize(summary)
 
@@ -286,26 +296,56 @@ def extract_city(summary: str) -> str:
 def extract_call_fields_rule_based(
     records: list[MaqsamCallRecord],
     details_catalog: list[str],
+    keyword_classifiers: "dict | None" = None,
+    agent_signals: "list | None" = None,
+    no_request_signals: "list | None" = None,
     on_progress=None,
 ) -> dict:
-    """نفس شكل إرجاع extract_call_fields بـ call_extraction.py (Claude) تمامًا، بدون أي استدعاء API."""
+    """نفس شكل إرجاع extract_call_fields بـ call_extraction.py (Claude) تمامًا، بدون أي استدعاء API.
+
+    تسلسل التصنيف بالأولوية (الأعلى يفوز، ويحمل details_priority=True فيمنع قاعدة الموظف
+    بـinbound_pipeline.py من استبدال نتيجته لاحقًا):
+    1) is_no_customer_request -> Details فاضية (العميل ما طلب شي أصلًا).
+    2) classify_by_keywords (Advertisement/Job Email/Working Hours/أي تصنيف جديد بـconfig.yaml)
+       — على نص العميل فقط (بعد استبعاد جمل الموظف/الوكيل عبر extract_customer_text).
+    3) classify_details العام (مطابقة الكتالوج الكاملة) — fallback، على نص العميل فقط كذلك.
+    """
     log = on_progress or print
     results = {}
     processed = 0
+    keyword_classifiers = keyword_classifiers or {}
+    agent_signals = agent_signals or []
+    no_request_signals = no_request_signals or []
 
     for r in records:
-        if not r.call_summary.strip():
+        summary = r.call_summary
+        if not summary.strip():
             continue
-        details = classify_details(r.call_summary, details_catalog)
-        city = extract_city(r.call_summary)
+
+        customer_text = extract_customer_text(summary, agent_signals)
+
+        details_priority = False
+        if is_no_customer_request(summary, no_request_signals):
+            details = ""
+            details_priority = True
+        else:
+            kw_target = classify_by_keywords(customer_text, keyword_classifiers)
+            if kw_target and kw_target in details_catalog:
+                details = kw_target
+                details_priority = True
+            else:
+                details = classify_details(customer_text, details_catalog)
+
+        city = extract_city(summary)
         if not city:
             city = _BRANCH_DETAILS_TO_CITY.get(details, "")
         results[r.call_id] = {
-            "customer_name": extract_customer_name(r.call_summary),
+            "customer_name": extract_customer_name(summary),
             "city": city,
             "details": details,
             "details_suggested": "",
-            "flag_commerce_complaint": is_commerce_complaint(r.call_summary),
+            "details_priority": details_priority,
+            "flag_commerce_complaint": is_commerce_complaint(summary),
         }
         processed += 1
 

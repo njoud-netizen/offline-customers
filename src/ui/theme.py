@@ -513,7 +513,75 @@ def inject_theme(lang: str) -> None:
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
+            position: relative;
         }}
+        /* بطاقة KPI قابلة للضغط (مثل "مكالمات بدون تصنيف"/"أرقام اتصلت أكثر من مرة"): زر
+        st.button حقيقي بلا نص (render_kpi_row) يُموضَع فوق كامل مساحة البطاقة شفافًا تمامًا
+        (opacity:0) ليصير الضغط بأي نقطة منها مكافئًا لضغط الرابط النصي الظاهر أسفلها —
+        :has() يستهدف فقط البطاقات اللي فيها هذا الزر فعليًا (باقي بطاقات KPI بلا تأثير). */
+        div[class*="st-key-kpi_card_"]:has(div[data-testid="stButton"]) {{ cursor: pointer; }}
+        div[class*="st-key-kpi_card_"] div[data-testid="stButton"] {{
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            margin: 0;
+        }}
+        div[class*="st-key-kpi_card_"] div[data-testid="stButton"] button {{
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            padding: 0;
+        }}
+        .maz-kpi-view-link {{
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: {PRIMARY_ACTION};
+            margin-top: 8px;
+        }}
+        div[class*="st-key-kpi_card_accent_"] .maz-kpi-view-link {{ color: {WHITE}; }}
+
+        /* ==== زر أيقونة التحميل (icon_button.py) — يستبدل زر "تحميل CSV" النصي بكل مواضعه ====
+        40×40px، أيقونة خطية Material Symbols بلون {PRIMARY_ACTION}، خلفية {PURPLE_50} فاتحة،
+        حد {PURPLE_100}، زوايا 10px. Tooltip مبني HTML/CSS خالص (لا اعتماد على title/help
+        الافتراضي غير القابل للتنسيق) — يظهر فوق الزر عند التمرير على الحاوية كاملة. */
+        div[class*="st-key-maz_icon_dl_"] {{ position: relative; display: inline-block; }}
+        div[class*="st-key-maz_icon_dl_"] div[data-testid="stDownloadButton"] button {{
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            padding: 0;
+            background: {PURPLE_50};
+            border: 1px solid {PURPLE_100};
+            border-radius: 10px;
+            color: {PRIMARY_ACTION};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
+        div[class*="st-key-maz_icon_dl_"] div[data-testid="stDownloadButton"] button svg {{
+            fill: currentColor;
+        }}
+        .maz-icon-dl-tooltip {{
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #131321;
+            color: {WHITE};
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .15s ease;
+            z-index: 30;
+        }}
+        div[class*="st-key-maz_icon_dl_"]:hover .maz-icon-dl-tooltip {{ opacity: 1; }}
         div[class*="st-key-kpi_card_accent_"] {{
             background: {GRADIENT_PRIMARY};
             border-color: {MAZNEXA_PURPLE};

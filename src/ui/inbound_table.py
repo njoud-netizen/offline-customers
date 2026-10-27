@@ -25,6 +25,7 @@ from src.translations import t
 
 from .badges import company_badge_html, details_badge_html, repeat_badge_html, status_badge_html
 from .empty_state import render_empty_state
+from .icon_button import icon_download_button
 from .phone_format import format_phone_display
 
 PAGE_SIZE = 25
@@ -327,6 +328,112 @@ def render_filter_toolbar(df_with_date: pd.DataFrame, state: dict, lang: str) ->
             st.toggle(t("inbound_table_group_toggle", lang), value=False, key="inbound_filter_group")
 
 
+def get_unclassified_df(filtered_df: pd.DataFrame) -> pd.DataFrame:
+    """صفوف Details فاضية ضمن filtered_df الحالي (نفس فلاتر الصفحة: الشركة/البحث...) — تُستخدم
+    بنافذة بطاقة 'مكالمات بدون تصنيف' المنبثقة."""
+    if filtered_df.empty or "Details" not in filtered_df.columns:
+        return filtered_df
+    return filtered_df[filtered_df["Details"].astype(str).str.strip() == ""]
+
+
+def _repeat_callers_groups(filtered_df: pd.DataFrame) -> list[tuple[str, pd.DataFrame]]:
+    """[(الرقم, صفوفه)] لكل رقم اتصل أكثر من مرة ضمن filtered_df الحالي، مرتبة من الأكثر
+    تكرارًا للأقل."""
+    if filtered_df.empty or "Number" not in filtered_df.columns:
+        return []
+    counts = filtered_df["Number"].astype(str).value_counts()
+    repeated = counts[counts > 1]
+    return [(number, filtered_df[filtered_df["Number"].astype(str) == number]) for number in repeated.index]
+
+
+def _last_note_for_group(group: pd.DataFrame, lang: str) -> str:
+    row = group.sort_values("Date").iloc[-1] if "Date" in group.columns else group.iloc[-1]
+    note, _ = _build_remark_cell(row.get("_remark_meta"), lang)
+    return note.strip()
+
+
+def _first_non_empty_company(group: pd.DataFrame) -> str:
+    company_series = group.get("company", pd.Series(dtype=str))
+    non_empty = company_series[company_series.astype(str).str.strip() != ""]
+    return str(non_empty.iloc[0]) if not non_empty.empty else ""
+
+
+def build_unclassified_table_html(df: pd.DataFrame, lang: str) -> str:
+    """جدول HTML (نفس ستايل .maz-table) لصفوف بدون تصنيف: رقم الجوال | الشركة | الملاحظات."""
+    header_html = (
+        f'<th class="maz-col-number">{html.escape(t("inbound_table_col_number", lang))}</th>'
+        f'<th class="maz-col-company">{html.escape(t("inbound_table_col_company", lang))}</th>'
+        f'<th class="maz-col-remark">{html.escape(t("inbound_table_col_notes", lang))}</th>'
+    )
+    rows_html = []
+    for _, r in df.iterrows():
+        number_cell = (
+            f'<td class="maz-col-number"><bdi dir="ltr" style="unicode-bidi:isolate;">'
+            f'{html.escape(format_phone_display(r["Number"]))}</bdi></td>'
+        )
+        company_cell = f'<td class="maz-col-company">{company_badge_html(r.get("company", ""))}</td>'
+        note, is_system = _build_remark_cell(r.get("_remark_meta"), lang)
+        note = note.strip()
+        if note:
+            escaped = html.escape(note)
+            note_class = "maz-table-notes maz-table-notes-system" if is_system else "maz-table-notes"
+            note_cell = f'<td class="maz-col-remark"><span class="{note_class}" dir="auto">{escaped}</span></td>'
+        else:
+            note_cell = '<td class="maz-col-remark"><span class="maz-table-dash">—</span></td>'
+        rows_html.append(f"<tr>{number_cell}{company_cell}{note_cell}</tr>")
+    return (
+        '<div class="maz-table-scroll"><table class="maz-table">'
+        f"<thead><tr>{header_html}</tr></thead>"
+        f"<tbody>{''.join(rows_html)}</tbody>"
+        "</table></div>"
+    )
+
+
+def build_repeat_callers_table_html(filtered_df: pd.DataFrame, lang: str) -> str:
+    """جدول HTML لأرقام اتصلت أكثر من مرة: الرقم | كم مرة اتصل | الشركة | آخر ملاحظة."""
+    header_html = (
+        f'<th class="maz-col-number">{html.escape(t("inbound_table_col_number", lang))}</th>'
+        f'<th>{html.escape(t("inbound_table_col_count", lang))}</th>'
+        f'<th class="maz-col-company">{html.escape(t("inbound_table_col_company", lang))}</th>'
+        f'<th class="maz-col-remark">{html.escape(t("inbound_dialog_col_last_note", lang))}</th>'
+    )
+    rows_html = []
+    for number, group in _repeat_callers_groups(filtered_df):
+        count = len(group)
+        company = _first_non_empty_company(group)
+        note = _last_note_for_group(group, lang)
+        number_cell = (
+            f'<td class="maz-col-number"><bdi dir="ltr" style="unicode-bidi:isolate;">'
+            f'{html.escape(format_phone_display(number))}</bdi></td>'
+        )
+        count_cell = f'<td dir="ltr">{repeat_badge_html(count)}</td>'
+        company_cell = f'<td class="maz-col-company">{company_badge_html(company)}</td>'
+        if note:
+            note_cell = f'<td class="maz-col-remark"><span class="maz-table-notes" dir="auto">{html.escape(note)}</span></td>'
+        else:
+            note_cell = '<td class="maz-col-remark"><span class="maz-table-dash">—</span></td>'
+        rows_html.append(f"<tr>{number_cell}{count_cell}{company_cell}{note_cell}</tr>")
+    return (
+        '<div class="maz-table-scroll"><table class="maz-table">'
+        f"<thead><tr>{header_html}</tr></thead>"
+        f"<tbody>{''.join(rows_html)}</tbody>"
+        "</table></div>"
+    )
+
+
+def build_repeat_callers_csv(filtered_df: pd.DataFrame, lang: str) -> bytes:
+    """CSV بنفس 4 أعمدة نافذة الأرقام المكررة المنبثقة (مجمّعة حسب الرقم، لا صفوف خام)."""
+    records = []
+    for number, group in _repeat_callers_groups(filtered_df):
+        records.append({
+            _col_label("Number", lang): format_phone_display(number),
+            _col_label("call_count", lang): len(group),
+            _col_label("company", lang): _first_non_empty_company(group),
+            t("inbound_dialog_col_last_note", lang): _last_note_for_group(group, lang),
+        })
+    return pd.DataFrame(records).to_csv(index=False).encode("utf-8-sig")
+
+
 def _group_rows(df: pd.DataFrame) -> pd.DataFrame:
     """يدمج صفوف نفس الرقم+التاريخ لصف واحد: عدد المكالمات + أول Details/Remark غير فاضي."""
     def _first_non_empty(s: pd.Series) -> str:
@@ -408,9 +515,9 @@ def render_table_body(total_rows_count: int, filtered_df: pd.DataFrame, group_en
                 st.rerun()
         with nav_csv:
             csv_bytes = filtered_df.to_csv(index=False).encode("utf-8-sig")
-            st.download_button(
-                t("inbound_download_csv_label", lang), data=csv_bytes, file_name="inbound_calls_filtered.csv",
-                mime="text/csv", use_container_width=True, key="inbound_csv_export",
+            icon_download_button(
+                data=csv_bytes, file_name="inbound_calls_filtered.csv",
+                mime="text/csv", key="inbound_csv_export", lang=lang,
             )
 
         page_df = table_df.iloc[page * PAGE_SIZE: (page + 1) * PAGE_SIZE]

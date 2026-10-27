@@ -31,12 +31,17 @@ from .inbound_table import (
     REASON_MODE_BOTTOM,
     REASON_MODE_TOP,
     REASON_SELECT_KEY,
+    build_repeat_callers_csv,
+    build_repeat_callers_table_html,
+    build_unclassified_table_html,
     compute_filtered,
+    get_unclassified_df,
     phone_search_summary,
     render_filter_toolbar,
     render_table_body,
     resolve_insight_state,
 )
+from .icon_button import icon_download_button
 from .kpi_card import KPICardData, render_kpi_row
 from .phone_format import format_phone_display
 from .step_indicator import render_step_indicator
@@ -277,6 +282,42 @@ def _render_insight_section(state: dict, lang: str) -> None:
     )
 
 
+def _show_unclassified_dialog(df: pd.DataFrame, count: int, lang: str) -> None:
+    title = t("inbound_dialog_unclassified_title", lang).format(count=count)
+
+    @st.dialog(title)
+    def _dialog():
+        if df.empty:
+            st.info(t("inbound_dialog_empty", lang))
+            return
+        st.markdown(build_unclassified_table_html(df, lang), unsafe_allow_html=True)
+        csv_bytes = df.to_csv(index=False).encode("utf-8-sig")
+        icon_download_button(
+            data=csv_bytes, file_name="inbound_unclassified_calls.csv", mime="text/csv",
+            key="inbound_dialog_unclassified_csv", lang=lang,
+        )
+
+    _dialog()
+
+
+def _show_repeat_callers_dialog(df: pd.DataFrame, count: int, lang: str) -> None:
+    title = t("inbound_dialog_repeat_title", lang).format(count=count)
+
+    @st.dialog(title)
+    def _dialog():
+        if count == 0:
+            st.info(t("inbound_dialog_empty", lang))
+            return
+        st.markdown(build_repeat_callers_table_html(df, lang), unsafe_allow_html=True)
+        csv_bytes = build_repeat_callers_csv(df, lang)
+        icon_download_button(
+            data=csv_bytes, file_name="inbound_repeat_callers.csv", mime="text/csv",
+            key="inbound_dialog_repeat_csv", lang=lang,
+        )
+
+    _dialog()
+
+
 _INBOUND_STEPS = ["upload", "process", "results"]
 
 
@@ -349,6 +390,9 @@ def inbound_call_page() -> None:
             )
             st.warning(t("inbound_unmatched_values_warning", lang).format(items=items))
 
+        if result.agent_ai_missing:
+            st.warning(t("inbound_agent_ai_missing_warning", lang))
+
         if not result.rows:
             st.success(t("inbound_success_processed", lang))
             render_empty_state(t("inbound_warning_no_rows", lang))
@@ -379,7 +423,6 @@ def inbound_call_page() -> None:
                     title=t("inbound_subheader_results", lang),
                     subtitle=subtitle,
                     lang=lang,
-                    download_label=t("inbound_download_csv_label", lang),
                     build_download_data=_build_csv,
                     download_filename="inbound_calls_filtered.csv",
                     download_mime="text/csv",
@@ -417,7 +460,7 @@ def inbound_call_page() -> None:
                 else t("inbound_kpi_repeat_callers_sub", lang)
             )
 
-            render_kpi_row(
+            clicked_view = render_kpi_row(
                 [
                     KPICardData(
                         label=t("inbound_metric_total", lang), value=f"{total:,}", icon=_icon_tile("call"), accent=True,
@@ -427,14 +470,23 @@ def inbound_call_page() -> None:
                         label=t("inbound_kpi_unclassified", lang), value=f"{unclassified_count:,}",
                         icon=_icon_tile("label_off"),
                         sub_line=t("inbound_kpi_unclassified_sub", lang).format(pct=f"{unclassified_pct:.0f}"),
+                        view_link_label=t("inbound_kpi_view_link", lang),
+                        view_link_key="inbound_kpi_view_unclassified",
                     ),
                     KPICardData(
                         label=t("inbound_kpi_repeat_callers", lang), value=f"{repeated_count:,}",
                         icon=_icon_tile("group"),
                         sub_line=repeated_sub,
+                        view_link_label=t("inbound_kpi_view_link", lang),
+                        view_link_key="inbound_kpi_view_repeat",
                     ),
                 ]
             )
+
+            if clicked_view == "inbound_kpi_view_unclassified":
+                _show_unclassified_dialog(get_unclassified_df(filtered_df), unclassified_count, lang)
+            elif clicked_view == "inbound_kpi_view_repeat":
+                _show_repeat_callers_dialog(filtered_df, repeated_count, lang)
 
             _render_insight_section(insight_state, lang)
 
