@@ -10,6 +10,21 @@ from .empty_state import render_empty_state
 
 PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
 
+# الأعمدة المعروضة بالجدول وبنفس الترتيب — باقي الأعمدة تبقى للفلاتر/البحث وملفات Excel فقط
+DISPLAY_COLUMNS = [
+    "اسم العميل", "رقم الجوال", "تاريخ التواصل بشيت المزروع", "سبب التواصل (Details)", "مبلغ الفاتورة الإجمالي",
+]
+DISPLAY_LABELS_AR = {
+    "تاريخ التواصل بشيت المزروع": "تاريخ تواصله",
+    "سبب التواصل (Details)": "السبب",
+}
+
+
+def _display_labels(columns, lang: str) -> list[str]:
+    if lang == "ar":
+        return [DISPLAY_LABELS_AR.get(c, c) for c in columns]
+    return translate_offline_columns(columns, lang)
+
 
 def render_offline_table(df_offline: pd.DataFrame, lang: str) -> None:
     if df_offline.empty:
@@ -19,8 +34,8 @@ def render_offline_table(df_offline: pd.DataFrame, lang: str) -> None:
     df = df_offline.copy()
     df["_invoice_date_parsed"] = pd.to_datetime(df["تاريخ الفاتورة"], errors="coerce")
 
-    raw_cols = list(df_offline.columns)
-    translated_cols = translate_offline_columns(raw_cols, lang)
+    raw_cols = [c for c in DISPLAY_COLUMNS if c in df_offline.columns]
+    translated_cols = _display_labels(raw_cols, lang)
     col_map = dict(zip(translated_cols, raw_cols))
 
     col_search, col_sort, col_order = st.columns([2, 1, 1])
@@ -101,13 +116,12 @@ def render_offline_table(df_offline: pd.DataFrame, lang: str) -> None:
 
     start_idx = st.session_state["offline_table_page"] * page_size
     end_idx = start_idx + page_size
-    page_df = df_sorted.iloc[start_idx:end_idx].copy()
-    page_df.columns = translate_offline_columns(page_df.columns, lang)
+    page_df = df_sorted.iloc[start_idx:end_idx][raw_cols].copy()
+    page_df.columns = translated_cols
 
-    phone_col = translate_offline_columns(["رقم الجوال"], lang)[0]
+    phone_col, total_col = _display_labels(["رقم الجوال", "مبلغ الفاتورة الإجمالي"], lang)
     column_config = {
         phone_col: st.column_config.TextColumn(),
-        "Sales Order ID": st.column_config.TextColumn(),
-        "Amount": st.column_config.NumberColumn(format="%.2f"),
+        total_col: st.column_config.NumberColumn(format="%.2f"),
     }
     st.dataframe(page_df, use_container_width=True, hide_index=True, column_config=column_config)

@@ -397,6 +397,7 @@ OFFLINE_TABLE_COLUMNS_EN = {
     "اسم الموظفة (Agent)": "Agent Name",
     "عدد فواتير هذا الرقم": "Invoice Count",
     "الحالة": "Status",
+    "مبلغ الفاتورة الإجمالي": "Total Invoice Amount",
 }
 
 
