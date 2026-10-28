@@ -140,11 +140,9 @@ def run_pipeline(
             })
 
     phone_invoice_counts = defaultdict(int)
-    phone_invoice_totals = defaultdict(float)
     for r in records:
         if r.phone.valid:
             phone_invoice_counts[r.phone.normalized] += 1
-            phone_invoice_totals[r.phone.normalized] += r.amount or 0.0
 
     today = date.today()
     progress("تطبيق شروط المطابقة على كل صف جديد...")
@@ -184,7 +182,6 @@ def run_pipeline(
                 "عدد فواتير هذا الرقم": phone_invoice_counts.get(r.phone.normalized, 1),
                 "الحالة": "أوفلاين",
                 "Amount": r.amount,
-                "مبلغ الفاتورة الإجمالي": phone_invoice_totals.get(r.phone.normalized, r.amount),
             })
 
         if store is not None and not result.skip_dedup:
