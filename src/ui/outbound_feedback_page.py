@@ -136,7 +136,24 @@ def _add_to_sheet(rows: list, cfg: dict, lang: str) -> None:
     st.rerun()
 
 
+def _render_extra_columns(extras, lang: str) -> None:
+    def label(column: str) -> str:
+        if column in extras.transcript:
+            return f'{column} ({t("outbound_extra_transcript", lang)})'
+        if column in extras.summary:
+            return f'{column} ({t("outbound_extra_summary", lang)})'
+        if column in extras.source:
+            return f'{column} ({t("outbound_extra_source", lang)})'
+        return column
+
+    names = "، ".join(label(c) for c in extras.names) or t("outbound_extra_none", lang)
+    text = t("outbound_extra_columns", lang).format(columns=html.escape(names))
+    st.markdown(f'<p class="maz-upload-hint">{text}</p>', unsafe_allow_html=True)
+
+
 def _render_warnings(result, lang: str) -> None:
+    if result.unlabelled_transcripts:
+        st.warning(t("outbound_warning_unlabelled", lang).format(count=result.unlabelled_transcripts))
     if result.excluded_no_number:
         st.warning(t("outbound_warning_no_number", lang).format(count=result.excluded_no_number))
     if result.invalid_numbers:
@@ -200,6 +217,7 @@ def outbound_feedback_page() -> None:
     if added is not None:
         st.success(t("outbound_success_added", lang).format(count=added, tab=tab))
 
+    _render_extra_columns(result.extra_columns, lang)
     _render_warnings(result, lang)
 
     all_rows = [c.row for c in result.calls]
@@ -219,10 +237,10 @@ def outbound_feedback_page() -> None:
         KPICardData(label=t("outbound_kpi_dissatisfied", lang), value=f"{count(COL_SATISFIED, DISSATISFIED):,}", icon=_icon_tile("thumb_down")),
     ])
 
-    manual_rows = [c.row for c in result.calls if c.needs_manual]
-    if manual_rows:
-        st.warning(t("outbound_alert_manual", lang).format(count=len(manual_rows)))
-        _render_table_section("outbound_manual", t("outbound_alert_manual_title", lang), manual_rows, _ISSUE_COLUMNS, lang)
+    follow_up_rows = [c.row for c in result.calls if c.needs_follow_up]
+    if follow_up_rows:
+        st.warning(t("outbound_alert_follow_up", lang).format(count=len(follow_up_rows)))
+        _render_table_section("outbound_follow_up", t("outbound_alert_follow_up_title", lang), follow_up_rows, _ISSUE_COLUMNS, lang)
 
     missing_how_rows = [r for r in all_rows if r[COL_CALL_STATUS] == STATUS_ANSWER and not r[COL_HOW_HEARD]]
     if missing_how_rows:

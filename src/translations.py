@@ -318,6 +318,17 @@ TRANSLATIONS = {
     "outbound_col_how_heard": {"ar": "كيف عرف عنّا", "en": "How did you hear about us"},
     "outbound_col_remark": {"ar": "الملاحظة", "en": "Note"},
     "outbound_col_agent": {"ar": "Agent", "en": "Agent"},
+    "outbound_alert_follow_up": {"ar": "مكالمات تحتاج متابعة: {count}", "en": "Calls that need follow-up: {count}"},
+    "outbound_alert_follow_up_title": {"ar": "مكالمات تحتاج متابعة", "en": "Calls that need follow-up"},
+    "outbound_extra_columns": {"ar": "الأعمدة الإضافية اللي لقيتها: {columns}", "en": "Extra columns found: {columns}"},
+    "outbound_extra_none": {"ar": "ما فيه", "en": "None"},
+    "outbound_extra_transcript": {"ar": "نص المكالمة", "en": "call transcript"},
+    "outbound_extra_summary": {"ar": "ملخص المكالمة", "en": "call summary"},
+    "outbound_extra_source": {"ar": "كيف عرف عنّا", "en": "how they heard about us"},
+    "outbound_warning_unlabelled": {
+        "ar": "{count} مكالمة نصها ما يحدد مين العميل ومين الإيجنت، فما انقرأ وتم الاعتماد على الأعمدة الاحتياطية.",
+        "en": "{count} call transcripts do not identify the speakers, so they were skipped and the fallback columns were used.",
+    },
 
     # ==== منطقة الرفع المحسّنة (كل الصفحات) ====
     "upload_drag_here": {"ar": "اسحب الملف هنا", "en": "Drag file here"},
