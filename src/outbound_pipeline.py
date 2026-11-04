@@ -16,7 +16,6 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill
 import pandas as pd
 
-from .phone import normalize_phone
 from .sheet_values import match_literal
 from .translate_helper import translate_to_arabic_status
 
@@ -343,15 +342,6 @@ def is_test_call(raw_number: str) -> bool:
     return not number or number.upper() == "WEB"
 
 
-def format_number(raw: str) -> str:
-    """صيغة الشيت: بدون 966 وبدون صفر بأوله (552733333). رقم مو جوال سعودي يبقى بأرقامه، وأي صيغة
-    ثانية تبقى كما هي."""
-    phone = normalize_phone(raw)
-    if phone.valid:
-        return phone.normalized[3:]
-    return phone.normalized if phone.normalized and phone.normalized.isdigit() else _clean(raw)
-
-
 def parse_created_at(raw: str) -> "date | None":
     text = _clean(raw)
     try:
@@ -575,7 +565,6 @@ def build_result(
     for _, src in df.iterrows():
         if is_test_call(src["To Number"]):
             continue
-        number = format_number(src["To Number"])
 
         created = parse_created_at(src["Created At"])
         if created is None:
@@ -616,7 +605,7 @@ def build_result(
         row = {column: "" for column in columns}
         row.update({
             COL_NAME: _clean(src["Customer Name"]),
-            COL_NUMBER: number,
+            COL_NUMBER: str(src["To Number"]),  # مثل ما هو في ملف صوت بالضبط، بدون أي تعديل على صيغته
             COL_DIRECTION: _literal(COL_DIRECTION, DIRECTION_OUTBOUND, cfg, result.unmatched),
             COL_CALL_STATUS: _literal(COL_CALL_STATUS, STATUS_ANSWER if answered else STATUS_NO_ANSWER, cfg, result.unmatched),
             COL_CHANNEL: _literal(COL_CHANNEL, CHANNEL_CALL, cfg, result.unmatched),
@@ -656,8 +645,12 @@ def _write_text(ws, row_idx: int, col_idx: int, value) -> None:
 def _write_row(ws, row_idx: int, row: dict, columns: list) -> None:
     for col_idx, column in enumerate(columns, start=1):
         value = row.get(column, "")
-        if column == COL_NUMBER and str(value).isdigit():
-            ws.cell(row=row_idx, column=col_idx, value=int(value)).number_format = "0"
+        if column == COL_NUMBER:
+            # نص صريح: كرقم يضيع الصفر، و_export_text يشيل "+" من أوله
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.value = value
+            cell.data_type = "s"
+            cell.number_format = "@"
         else:
             _write_text(ws, row_idx, col_idx, value)
 
