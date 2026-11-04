@@ -1,12 +1,11 @@
-"""صفحة "اوت باوند – فيد باك": رفع تصدير صوت -> معاينة الصفوف -> زر "إضافة للشيت". مستقلة تمامًا عن
+"""صفحة "اوت باوند – فيد باك": رفع تصدير صوت -> معاينة الصفوف -> تحميل Excel أو نسخ الصفوف. مستقلة تمامًا عن
 صفحتي Inbound Call ورفع الأوفلاين، وتعيد استخدام مكوّنات التصميم المشتركة فقط بدون أي تعديل عليها.
-المنطق بـsrc/outbound_pipeline.py، ولا شيء يُكتب بالشيت قبل الضغط على الزر."""
+المنطق بـsrc/outbound_pipeline.py، والصفحة تقرأ من الشيت فقط ولا تكتب فيه أي شيء."""
 import hashlib
 import html
 import io
 from datetime import date
 
-import gspread
 import streamlit as st
 
 from src.config import load_config
@@ -32,11 +31,10 @@ from src.outbound_pipeline import (
     OutboundInputError,
     build_excel_bytes,
     build_result,
-    filter_new_rows,
+    build_tsv,
     load_export,
     load_sheet_context,
 )
-from src.outbound_sheet_writer import OutboundWritePermissionError, append_rows_to_sheet
 from src.translations import t
 
 from .empty_state import render_empty_state
@@ -46,11 +44,13 @@ from .step_indicator import render_step_indicator
 
 _STEPS = ["upload", "process", "results"]
 _PREVIEW_KEY = "outbound_preview"
-_FLASH_KEY = "outbound_added_count"
 
 _CALL_LINK = "_call_url"  # مفتاح عرض فقط، ليس من أعمدة الشيت
+_EXISTS_MARK = "_exists"  # مفتاح عرض فقط، ليس من أعمدة الشيت
+_EXISTS_ROW_STYLE = ' style="background:rgba(245,158,11,0.14);"'
 
 _PREVIEW_COLUMNS = [
+    (_EXISTS_MARK, "outbound_col_exists"),
     (COL_NAME, "outbound_col_name"),
     (COL_NUMBER, "outbound_col_number"),
     (_CALL_LINK, "outbound_col_call_link"),
@@ -77,7 +77,7 @@ def _icon_tile(name: str) -> str:
 
 
 def _display_row(call) -> dict:
-    return {**call.row, _CALL_LINK: call.call_url}
+    return {**call.row, _CALL_LINK: call.call_url, _EXISTS_MARK: "1" if call.is_duplicate else ""}
 
 
 def _table_html(rows: list, columns: list, lang: str, wide: bool = False) -> str:
@@ -99,12 +99,15 @@ def _table_html(rows: list, columns: list, lang: str, wide: bool = False) -> str
                     f'<td{cell_style}><a href="{html.escape(value)}" target="_blank" rel="noopener noreferrer">'
                     f'{html.escape(t("outbound_listen_call", lang))}</a></td>'
                 )
+            elif column == _EXISTS_MARK:
+                cells.append(f'<td{cell_style}><strong>{html.escape(t("outbound_exists_mark", lang))}</strong></td>')
             elif column in (COL_NUMBER, COL_DATE):
                 cells.append(f'<td{cell_style}><bdi dir="ltr" style="unicode-bidi:isolate;">{html.escape(value)}</bdi></td>')
             else:
                 style = note_style if column == COL_REMARK else cell_style
                 cells.append(f"<td{style}>{html.escape(value)}</td>")
-        body.append(f"<tr>{''.join(cells)}</tr>")
+        row_style = _EXISTS_ROW_STYLE if row.get(_EXISTS_MARK) else ""
+        body.append(f"<tr{row_style}>{''.join(cells)}</tr>")
     return (
         f'<div class="maz-table-scroll"><table class="maz-table"{table_style}>'
         f"<thead><tr>{header}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"
@@ -133,20 +136,21 @@ def _load_preview(file_bytes: bytes, file_name: str, cfg: dict):
     return result, ctx.tab
 
 
-def _add_to_sheet(rows: list, cfg: dict, lang: str) -> None:
-    """يعيد فحص التكرار من الشيت لحظة الضغط، فالضغط مرتين أو رفع الملف من جلسة ثانية ما يكرر صفوف."""
+def _render_copy_button(rows: list, columns: list, lang: str) -> None:
+    text = build_tsv(rows, columns)
     try:
-        fresh_rows = filter_new_rows(rows, load_sheet_context(cfg).existing_keys)
-        added = append_rows_to_sheet(cfg, fresh_rows)
-    except OutboundWritePermissionError:
-        st.error(t("outbound_error_no_permission", lang))
+        from .outbound_copy_button import render_copy_button
+    except ImportError:
+        st.caption(t("outbound_copy_fallback", lang))
+        st.code(text, language=None)
         return
-    except (gspread.exceptions.GSpreadException, OSError, ValueError) as e:
-        st.error(f"{t('outbound_error_write', lang)}\n\n{e}")
-        return
-    st.session_state[_FLASH_KEY] = added
-    st.session_state.pop(_PREVIEW_KEY, None)
-    st.rerun()
+    render_copy_button(
+        text,
+        t("outbound_copy_button", lang),
+        t("outbound_copied_message", lang),
+        t("outbound_copy_failed", lang),
+        "rtl" if lang == "ar" else "ltr",
+    )
 
 
 def _render_extra_columns(extras, lang: str) -> None:
@@ -198,7 +202,7 @@ def outbound_feedback_page() -> None:
             f"</div>",
             unsafe_allow_html=True,
         )
-        st.markdown(f'<p class="maz-upload-hint">{t("outbound_upload_hint", lang)}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="maz-upload-hint">{t("outbound_read_only_hint", lang)}</p>', unsafe_allow_html=True)
 
     if uploaded_file is None:
         with step_box.container():
@@ -225,10 +229,6 @@ def outbound_feedback_page() -> None:
 
     with step_box.container():
         render_step_indicator("results", step_labels, steps=_STEPS)
-
-    added = st.session_state.pop(_FLASH_KEY, None)
-    if added is not None:
-        st.success(t("outbound_success_added", lang).format(count=added, tab=tab))
 
     _render_extra_columns(result.extra_columns, lang)
     _render_warnings(result, lang)
@@ -264,33 +264,24 @@ def outbound_feedback_page() -> None:
     if dissatisfied_rows:
         _render_table_section("outbound_dissatisfied", t("outbound_dissatisfied_title", lang), dissatisfied_rows, _DISSATISFIED_COLUMNS, lang)
 
-    new_rows = result.new_rows
     if result.duplicate_count:
-        st.info(t("outbound_info_duplicates", lang).format(count=result.duplicate_count))
+        st.warning(t("outbound_warning_duplicates", lang).format(count=result.duplicate_count))
 
-    if new_rows:
-        preview_rows = [_display_row(c) for c in result.calls if not c.is_duplicate]
-        _render_table_section("outbound_preview", t("outbound_preview_title", lang).format(count=len(new_rows)), preview_rows, _PREVIEW_COLUMNS, lang, wide=True)
-    else:
-        render_empty_state(t("outbound_nothing_to_add", lang))
+    preview_rows = [_display_row(c) for c in result.calls]
+    _render_table_section("outbound_preview", t("outbound_rows_title", lang).format(count=len(preview_rows)), preview_rows, _PREVIEW_COLUMNS, lang, wide=True)
 
-    st.markdown(f'<p class="maz-upload-hint">{t("outbound_target_tab_note", lang).format(tab=html.escape(tab))}</p>', unsafe_allow_html=True)
-    col_add, col_download = st.columns(2)
-    with col_add:
-        add_clicked = st.button(
-            t("outbound_add_button", lang), key="outbound_add_to_sheet", type="primary",
-            disabled=not new_rows, use_container_width=True,
-        )
+    st.markdown(f'<p class="maz-upload-hint">{t("outbound_read_tab_note", lang).format(tab=html.escape(tab))}</p>', unsafe_allow_html=True)
+    columns = cfg["google_sheets"]["columns"]
+    col_copy, col_download = st.columns(2)
+    with col_copy:
+        _render_copy_button(all_rows, columns, lang)
     with col_download:
         st.download_button(
             t("outbound_download_excel", lang),
-            data=build_excel_bytes(new_rows, cfg["google_sheets"]["columns"]),
+            data=build_excel_bytes(all_rows, columns),
             file_name="outbound_feedback.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="outbound_download_excel", disabled=not new_rows, use_container_width=True,
+            key="outbound_download_excel", use_container_width=True,
         )
-    if add_clicked:
-        with st.spinner(t("outbound_spinner_adding", lang)):
-            _add_to_sheet(new_rows, cfg, lang)
 
     render_footer(lang)

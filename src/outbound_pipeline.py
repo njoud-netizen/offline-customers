@@ -1,6 +1,6 @@
 """خط أنابيب صفحة "اوت باوند – فيد باك": تصدير صوت -> صفوف بنفس أعمدة شيت المزروع. مسار مستقل
-تمامًا عن inbound_pipeline.py وpipeline.py — لا يكتب أي شيء بالشيت هنا إطلاقًا (الكتابة حصريًا
-بـoutbound_sheet_writer.py وبعد ضغط الزر فقط).
+تمامًا عن inbound_pipeline.py وpipeline.py — يقرأ من الشيت فقط (القوائم المنسدلة وفحص التكرار) ولا
+يكتب فيه أي شيء إطلاقًا. الصفوف تطلع كملف Excel أو نص للنسخ واللصق.
 
 القاعدة الأساسية: كل قيمة بعمود له قائمة منسدلة تُطابَق حرفيًا ضد قائمة التبويب المستهدف الحية،
 وأي قيمة لا تطابق تبقى فاضية. الأعمدة تُقرأ بالموقع لا بالاسم، لأن عناوين الهيدر الفعلية تختلف بين
@@ -128,10 +128,6 @@ class OutboundResult:
     missing_dates: int = 0
     extra_columns: ExtraColumns = field(default_factory=ExtraColumns)
     unlabelled_transcripts: int = 0  # نصوص ما تحدد المتحدث، فما تُستخدم حتى لا يختلط كلام الإيجنت بالعميل
-
-    @property
-    def new_rows(self) -> list:
-        return [c.row for c in self.calls if not c.is_duplicate]
 
     @property
     def duplicate_count(self) -> int:
@@ -572,10 +568,6 @@ def existing_row_keys(values: list, columns: list) -> set:
     return keys
 
 
-def filter_new_rows(rows: list, existing_keys: set) -> list:
-    return [r for r in rows if _row_key(r[COL_NUMBER], parse_sheet_date(r[COL_DATE])) not in existing_keys]
-
-
 def _extract_dropdowns(cells: list, columns: list) -> dict:
     found = {}
     for i, column in enumerate(columns):
@@ -686,6 +678,20 @@ def build_result(
     return result
 
 
+def _export_text(value) -> str:
+    """القيم تُنسخ وتُلصق بالشيت، فما يبدأ نص بحرف يحوّله الشيت لصيغة، ولا يكسر Tab أو سطر جديد الصف."""
+    return re.sub(r"[\t\r\n]+", " ", str(value)).strip().lstrip("=+-@ ")
+
+
+def build_tsv(rows: list, columns: list) -> str:
+    """صفوف بدون هيدر، مفصولة بـTab وبنفس ترتيب الشيت، للصق بـCtrl+V. علامة " تتبدل لأن الشيت
+    يعتبر الخلية اللي تبدأ فيها مقتبسة وممكن يدمجها مع اللي بعدها."""
+    return "\n".join(
+        "\t".join(_export_text(row.get(column, "")).replace('"', "'") for column in columns)
+        for row in rows
+    )
+
+
 def build_excel_bytes(rows: list, columns: list) -> bytes:
     """نفس أعمدة الشيت وبنفس الترتيب. كل نص يُحفظ كنص صريح حتى لا يتحول نص يبدأ بـ"=" لصيغة."""
     wb = openpyxl.Workbook()
@@ -698,7 +704,7 @@ def build_excel_bytes(rows: list, columns: list) -> bytes:
                 ws.cell(row=row_idx, column=col_idx, value=int(value)).number_format = "0"
             elif value:
                 cell = ws.cell(row=row_idx, column=col_idx)
-                cell.value = str(value)
+                cell.value = _export_text(value)
                 cell.data_type = "s"
     buffer = io.BytesIO()
     wb.save(buffer)

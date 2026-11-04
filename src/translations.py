@@ -318,6 +318,31 @@ TRANSLATIONS = {
     "outbound_col_how_heard": {"ar": "كيف عرف عنّا", "en": "How did you hear about us"},
     "outbound_col_remark": {"ar": "الملاحظة", "en": "Note"},
     "outbound_col_agent": {"ar": "Agent", "en": "Agent"},
+    "outbound_read_only_hint": {
+        "ar": "ارفع تصدير المكالمات (Excel أو CSV). الصفحة تقرأ من الشيت بس، وما تكتب فيه أي شي.",
+        "en": "Upload the calls export (Excel or CSV). This page only reads from the sheet and never writes to it.",
+    },
+    "outbound_copy_button": {"ar": "نسخ الصفوف", "en": "Copy rows"},
+    "outbound_copied_message": {"ar": "تم النسخ — الصقها في شيت المزروع", "en": "Copied — paste them into the Almazro sheet"},
+    "outbound_copy_failed": {
+        "ar": "ما قدر المتصفح ينسخ. تقدر تستخدم ملف Excel بدال النسخ.",
+        "en": "The browser could not copy. You can use the Excel file instead.",
+    },
+    "outbound_copy_fallback": {
+        "ar": "زر النسخ يحتاج إصدار Streamlit أحدث. انسخ الصفوف من المربع هذا:",
+        "en": "The copy button needs a newer Streamlit version. Copy the rows from this box:",
+    },
+    "outbound_rows_title": {"ar": "معاينة الصفوف ({count})", "en": "Rows preview ({count})"},
+    "outbound_col_exists": {"ar": "التكرار", "en": "Duplicate"},
+    "outbound_exists_mark": {"ar": "موجود مسبقًا", "en": "Already exists"},
+    "outbound_warning_duplicates": {
+        "ar": "{count} صف موجود مسبقًا في الشيت ومعلّم في المعاينة. ملف Excel والنسخ يشملون كل الصفوف، فلازم الانتباه قبل اللصق حتى ما تتكرر.",
+        "en": "{count} rows already exist in the sheet and are marked in the preview. The Excel file and the copy include all rows, so take care when pasting to avoid duplicates.",
+    },
+    "outbound_read_tab_note": {
+        "ar": "فحص التكرار يقرأ من تبويب: {tab} (قراءة فقط). اللصق يبدأ من العمود الأول (Region).",
+        "en": "The duplicate check reads the tab: {tab} (read-only). Paste starting from the first column (Region).",
+    },
     "outbound_col_call_link": {"ar": "التسجيل", "en": "Recording"},
     "outbound_listen_call": {"ar": "سماع المكالمة 🔗", "en": "Listen to call 🔗"},
     "outbound_alert_follow_up": {"ar": "مكالمات تحتاج متابعة: {count}", "en": "Calls that need follow-up: {count}"},
