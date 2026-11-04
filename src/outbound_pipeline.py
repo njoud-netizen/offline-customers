@@ -60,7 +60,6 @@ AGENT_AI = "AI"  # عمود Agent بلا قائمة منسدلة بالشيت �
 NOTE_CALLBACK = "طلب إعادة الاتصال"
 NOTE_CONTACT_LATER = "طلب التواصل لاحقًا"
 NOTE_GENERIC_DISSATISFIED = "العميل غير راضٍ"
-NOTE_EXCLUDED = "انحذفت من صفحة للشيت: الرقم مو رقم جوال"
 NOTE_MAX_CHARS = 120
 SHEET_PASTE = "للشيت"
 SHEET_REVIEW = "للمراجعة"
@@ -71,7 +70,6 @@ REVIEW_LINK_TEXT = "سماع المكالمة 🔗"
 REVIEW_WIDTHS = {COL_REMARK: 40, REVIEW_COL_REASON: 50, REVIEW_COL_FOLLOW_UP: 28, REVIEW_COL_LINK: 20}
 FILL_DISSATISFIED = PatternFill("solid", fgColor="FFC7CE")
 FILL_ATTENTION = PatternFill("solid", fgColor="FFEB9C")
-FILL_EXCLUDED = PatternFill("solid", fgColor="D9D9D9")
 LINK_FONT = Font(color="0563C1", underline="single")
 NOTE_MIN_REQUEST_WORDS = 3  # أقل من كذا ("أيوة مناسب") ما يوضح سبب عدم الرضا، فيُستخدم Sentiment Reason
 
@@ -126,7 +124,6 @@ class ExtraColumns:
 @dataclass
 class OutboundResult:
     calls: list = field(default_factory=list)
-    excluded_calls: list = field(default_factory=list)  # رقمها مو رقم جوال (WEB مثلًا): بصفحة "للمراجعة" فقط
     unmatched: list = field(default_factory=list)  # {"column","raw_value"} خانات تُركت فاضية
     missing_dates: int = 0
     extra_columns: ExtraColumns = field(default_factory=ExtraColumns)
@@ -340,13 +337,19 @@ def build_speech(src, extras: ExtraColumns, cfg: dict) -> "tuple[CallSpeech | No
     return None, unlabelled
 
 
-def format_number(raw: str) -> tuple[str, bool]:
-    """صيغة الشيت: بدون 966 وبدون صفر بأوله (552733333). يرجع (الرقم, صالح؟)؛ رقم مو جوال سعودي يبقى
-    بأرقامه كما هي، وقيمة بلا أرقام (WEB) ترجع فاضية."""
+def is_test_call(raw_number: str) -> bool:
+    """مكالمات التجربة: رقمها WEB أو فاضي. هذي بس تنحذف، وأي رقم ثاني يبقى صف عادي."""
+    number = _clean(raw_number)
+    return not number or number.upper() == "WEB"
+
+
+def format_number(raw: str) -> str:
+    """صيغة الشيت: بدون 966 وبدون صفر بأوله (552733333). رقم مو جوال سعودي يبقى بأرقامه، وأي صيغة
+    ثانية تبقى كما هي."""
     phone = normalize_phone(raw)
     if phone.valid:
-        return phone.normalized[3:], True
-    return (phone.normalized, False) if phone.normalized and phone.normalized.isdigit() else ("", False)
+        return phone.normalized[3:]
+    return phone.normalized if phone.normalized and phone.normalized.isdigit() else _clean(raw)
 
 
 def parse_created_at(raw: str) -> "date | None":
@@ -570,9 +573,9 @@ def build_result(
     url_column = next((c for c in extras.names if _column_key(c) == "callurl"), None)
 
     for _, src in df.iterrows():
-        number, number_valid = format_number(src["To Number"])
-        if not number_valid:
-            number = number or _clean(src["To Number"])
+        if is_test_call(src["To Number"]):
+            continue
+        number = format_number(src["To Number"])
 
         created = parse_created_at(src["Created At"])
         if created is None:
@@ -597,8 +600,7 @@ def build_result(
             satisfied = _resolve_rating(speech, contact_later, src, cfg)
             notes = []
             if satisfied == DISSATISFIED:
-                # المحذوفة ما توصل للشيت، فما تستهلك حصة خدمة الترجمة المجانية على حساب الصفوف الباقية
-                notes.append(_dissatisfied_reason(speech, request, reason, cfg, translate if number_valid else (lambda text: (text, False))))
+                notes.append(_dissatisfied_reason(speech, request, reason, cfg, translate))
             if contact_later:
                 follow_up_note = f"{NOTE_CONTACT_LATER} ({requested_time})" if requested_time else NOTE_CONTACT_LATER
                 notes.append(follow_up_note)
@@ -628,14 +630,13 @@ def build_result(
             COL_REMARK: remark,
             COL_AGENT: AGENT_AI,
         })
-        call = OutboundCall(
+        result.calls.append(OutboundCall(
             row=row,
             follow_up_note=follow_up_note,
             call_url=_safe_call_url(src[url_column]) if url_column else "",
-            blank_reasons=_blank_reasons(row, answered, result.unmatched[unmatched_start:]) if number_valid else [NOTE_EXCLUDED],
+            blank_reasons=_blank_reasons(row, answered, result.unmatched[unmatched_start:]),
             needs_attention=bool(follow_up_note) or (answered and not row[COL_SATISFIED]),
-        )
-        (result.calls if number_valid else result.excluded_calls).append(call)
+        ))
     return result
 
 
@@ -678,8 +679,7 @@ def _write_review_sheet(ws, result: OutboundResult, columns: list) -> None:
         if header in REVIEW_WIDTHS:
             ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = REVIEW_WIDTHS[header]
 
-    # المحذوفة آخر الجدول، فتبقى الصفوف الباقية بنفس أرقام صفوفها بصفحة "للشيت"
-    for row_idx, call in enumerate([*result.calls, *result.excluded_calls], start=2):
+    for row_idx, call in enumerate(result.calls, start=2):
         _write_row(ws, row_idx, call.row, columns)
         _write_text(ws, row_idx, reason_col, " | ".join(call.blank_reasons))
         _write_text(ws, row_idx, follow_up_col, call.follow_up_note)
@@ -687,19 +687,14 @@ def _write_review_sheet(ws, result: OutboundResult, columns: list) -> None:
             link = ws.cell(row=row_idx, column=link_col, value=REVIEW_LINK_TEXT)
             link.hyperlink = call.call_url
             link.font = LINK_FONT
-        # المحذوفة رمادي دايمًا، والغير راضي يغلب الأصفر لأنه الأهم، والسبب يبقى مكتوب بعمود "ليش فاضي"
-        if NOTE_EXCLUDED in call.blank_reasons:
-            fill = FILL_EXCLUDED
-        elif call.row[COL_SATISFIED] == DISSATISFIED:
-            fill = FILL_DISSATISFIED
-        else:
-            fill = FILL_ATTENTION if call.needs_attention else None
+        # الغير راضي يغلب الأصفر لأنه الأهم، والسبب يبقى مكتوب بعمود "ليش فاضي"
+        fill = FILL_DISSATISFIED if call.row[COL_SATISFIED] == DISSATISFIED else FILL_ATTENTION if call.needs_attention else None
         if fill:
             for col_idx in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col_idx).fill = fill
 
     # سطر فاضي يفصل الملاحظات عن الصفوف
-    for row_idx, note in enumerate(_review_footnotes(result), start=len(result.calls) + len(result.excluded_calls) + 3):
+    for row_idx, note in enumerate(_review_footnotes(result), start=len(result.calls) + 3):
         _write_text(ws, row_idx, 1, note)
 
 
