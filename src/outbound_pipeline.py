@@ -13,6 +13,7 @@ from functools import lru_cache
 from typing import Callable
 
 import openpyxl
+from openpyxl.styles import Font, PatternFill
 import pandas as pd
 
 from .phone import normalize_phone
@@ -60,6 +61,16 @@ NOTE_CALLBACK = "طلب إعادة الاتصال"
 NOTE_CONTACT_LATER = "طلب التواصل لاحقًا"
 NOTE_GENERIC_DISSATISFIED = "العميل غير راضٍ"
 NOTE_MAX_CHARS = 120
+SHEET_PASTE = "للشيت"
+SHEET_REVIEW = "للمراجعة"
+REVIEW_COL_REASON = "ليش فاضي"
+REVIEW_COL_FOLLOW_UP = "يحتاج متابعة"
+REVIEW_COL_LINK = "رابط المكالمة"
+REVIEW_LINK_TEXT = "سماع المكالمة 🔗"
+REVIEW_WIDTHS = {COL_REMARK: 40, REVIEW_COL_REASON: 50, REVIEW_COL_FOLLOW_UP: 28, REVIEW_COL_LINK: 20}
+FILL_DISSATISFIED = PatternFill("solid", fgColor="FFC7CE")
+FILL_INCOMPLETE = PatternFill("solid", fgColor="FFEB9C")
+LINK_FONT = Font(color="0563C1", underline="single")
 NOTE_MIN_REQUEST_WORDS = 3  # أقل من كذا ("أيوة مناسب") ما يوضح سبب عدم الرضا، فيُستخدم Sentiment Reason
 
 _EMPTY_VALUES = {"", "n/a", "na", "nan", "none", "null", "-"}
@@ -96,8 +107,10 @@ class OutboundInputError(Exception):
 @dataclass
 class OutboundCall:
     row: dict  # بأعمدة outbound_feedback.output_columns بالضبط وبنفس الترتيب
-    needs_follow_up: bool = False  # العميل طلب التواصل لاحقًا
-    call_url: str = ""  # للعرض بالصفحة فقط: خارج row عمدًا فلا يصل للشيت ولا لملف Excel
+    follow_up_note: str = ""  # طلب التواصل لاحقًا أو طلب إعادة الاتصال
+    call_url: str = ""  # خارج row عمدًا فلا يصل لصفحة "للشيت"، ويظهر بصفحة "للمراجعة" فقط
+    blank_reasons: list = field(default_factory=list)
+    is_incomplete: bool = False  # فيه خانة المفروض تتعبّى وما تعبّت (فراغات No Answer الطبيعية ما تُحسب)
 
 
 @dataclass
@@ -527,6 +540,28 @@ def _literal(column: str, value: str, cfg: dict, unmatched: list) -> str:
     return literal
 
 
+def _review_notes(row: dict, answered: bool, number_valid: bool, unmatched: list) -> "tuple[list, bool]":
+    """أسباب الفراغ لصفحة "للمراجعة"، وهل الصف ناقص فعلًا. فراغات No Answer طبيعية فتُشرح بدون ما تُحسب نقصًا."""
+    issues = []
+    if not row[COL_NAME]:
+        issues.append("الاسم مو موجود في ملف صوت")
+    if not number_valid:
+        issues.append("الرقم بصيغة غير صالحة")
+    if not row[COL_DATE]:
+        issues.append("التاريخ ناقص أو ما انقرأ")
+    issues += [f'{u["column"]}: القيمة "{u["raw_value"]}" مو في القائمة' for u in unmatched]
+    if not row[COL_COMPANY] and not any(u["column"] == COL_COMPANY for u in unmatched):
+        issues.append("الشركة مو مذكورة في Agent Name")
+    if answered:
+        if not row[COL_SATISFIED]:
+            issues.append("طلب التواصل لاحقًا وما ذكر تقييم")
+        if not row[COL_HOW_HEARD]:
+            issues.append("العميل ما ذكر كيف عرف عنّا")
+    if answered:
+        return issues, bool(issues)
+    return [*issues, "ما رد، فالرضا وكيف عرف عنّا والملاحظة فاضية"], bool(issues)
+
+
 def build_result(
     df: pd.DataFrame, cfg: dict, translate: Callable = translate_to_arabic_status,
 ) -> OutboundResult:
@@ -558,8 +593,8 @@ def build_result(
         # طلب التواصل لاحقًا يعني العميل رد فعلًا، حتى لو Call Outcome = N/A
         answered = has_duration and (bool(outcome) or (contact_later and direct_evidence))
 
-        satisfied = how_heard = remark = details = ""
-        needs_follow_up = False
+        unmatched_start = len(result.unmatched)
+        satisfied = how_heard = remark = details = follow_up_note = ""
         if answered:
             request = _clean(src["Customer Request"])
             reason = _clean(src["Sentiment Reason"])
@@ -568,10 +603,11 @@ def build_result(
             if satisfied == DISSATISFIED:
                 notes.append(_dissatisfied_reason(speech, request, reason, cfg, translate))
             if contact_later:
-                needs_follow_up = True
-                notes.append(f"{NOTE_CONTACT_LATER} ({requested_time})" if requested_time else NOTE_CONTACT_LATER)
+                follow_up_note = f"{NOTE_CONTACT_LATER} ({requested_time})" if requested_time else NOTE_CONTACT_LATER
+                notes.append(follow_up_note)
             elif follow_up:
-                notes.append(NOTE_CALLBACK)
+                follow_up_note = NOTE_CALLBACK
+                notes.append(follow_up_note)
             remark = " | ".join(notes)
             how_heard = _resolve_how_heard(src, extras, speech, cfg, _allowed_values(cfg, COL_HOW_HEARD), result.unmatched)
             details_values = _allowed_values(cfg, COL_DETAILS)
@@ -595,10 +631,13 @@ def build_result(
             COL_REMARK: remark,
             COL_AGENT: AGENT_AI,
         })
+        blank_reasons, is_incomplete = _review_notes(row, answered, number_valid, result.unmatched[unmatched_start:])
         result.calls.append(OutboundCall(
             row=row,
-            needs_follow_up=needs_follow_up,
+            follow_up_note=follow_up_note,
             call_url=_safe_call_url(src[url_column]) if url_column else "",
+            blank_reasons=blank_reasons,
+            is_incomplete=is_incomplete,
         ))
     return result
 
@@ -608,20 +647,70 @@ def _export_text(value) -> str:
     return re.sub(r"[\t\r\n]+", " ", str(value)).strip().lstrip("=+-@ ")
 
 
-def build_excel_bytes(rows: list, columns: list) -> bytes:
-    """أعمدة output_columns وبنفس الترتيب. كل نص يُحفظ كنص صريح حتى لا يتحول نص يبدأ بـ"=" لصيغة."""
+def _write_text(ws, row_idx: int, col_idx: int, value) -> None:
+    """كل نص يُحفظ كنص صريح حتى لا يتحول نص يبدأ بـ"=" لصيغة."""
+    if value:
+        cell = ws.cell(row=row_idx, column=col_idx)
+        cell.value = _export_text(value)
+        cell.data_type = "s"
+
+
+def _write_row(ws, row_idx: int, row: dict, columns: list) -> None:
+    for col_idx, column in enumerate(columns, start=1):
+        value = row.get(column, "")
+        if column == COL_NUMBER and str(value).isdigit():
+            ws.cell(row=row_idx, column=col_idx, value=int(value)).number_format = "0"
+        else:
+            _write_text(ws, row_idx, col_idx, value)
+
+
+def _review_footnotes(result: OutboundResult) -> list:
+    """مكالمات ما لها صف أصلًا، فمكانها تحت جدول "للمراجعة" حتى ما تضيع بدون ما أحد يدري."""
+    notes = []
+    if result.excluded_no_number:
+        notes.append(f"{result.excluded_no_number} مكالمة مو في الصفحتين لأن ما لها رقم جوال")
+    if result.unlabelled_transcripts:
+        notes.append(f"{result.unlabelled_transcripts} نص مكالمة ما يحدد المتحدث، فما انستخدم في التصنيف")
+    return notes
+
+
+def _write_review_sheet(ws, result: OutboundResult, columns: list) -> None:
+    headers = [*columns, REVIEW_COL_REASON, REVIEW_COL_FOLLOW_UP, REVIEW_COL_LINK]
+    reason_col, follow_up_col, link_col = len(columns) + 1, len(columns) + 2, len(columns) + 3
+    ws.append(headers)
+    ws.freeze_panes = "A2"
+    for col_idx, header in enumerate(headers, start=1):
+        if header in REVIEW_WIDTHS:
+            ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = REVIEW_WIDTHS[header]
+
+    for row_idx, call in enumerate(result.calls, start=2):
+        _write_row(ws, row_idx, call.row, columns)
+        _write_text(ws, row_idx, reason_col, " | ".join(call.blank_reasons))
+        _write_text(ws, row_idx, follow_up_col, call.follow_up_note)
+        if call.call_url:
+            link = ws.cell(row=row_idx, column=link_col, value=REVIEW_LINK_TEXT)
+            link.hyperlink = call.call_url
+            link.font = LINK_FONT
+        # الغير راضي يغلب الناقص لأنه الأهم بالمتابعة، وسبب النقص يبقى مكتوب بعمود "ليش فاضي"
+        fill = FILL_DISSATISFIED if call.row[COL_SATISFIED] == DISSATISFIED else FILL_INCOMPLETE if call.is_incomplete else None
+        if fill:
+            for col_idx in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col_idx).fill = fill
+
+    # سطر فاضي يفصل الملاحظات عن الصفوف
+    for row_idx, note in enumerate(_review_footnotes(result), start=len(result.calls) + 3):
+        _write_text(ws, row_idx, 1, note)
+
+
+def build_excel_bytes(result: OutboundResult, columns: list) -> bytes:
+    """صفحة "للشيت" للنسخ واللصق بأعمدة output_columns فقط، وصفحة "للمراجعة" نفس الصفوف مع الأسباب والمتابعة والرابط."""
     wb = openpyxl.Workbook()
     ws = wb.active
+    ws.title = SHEET_PASTE
     ws.append(columns)
-    for row_idx, row in enumerate(rows, start=2):
-        for col_idx, column in enumerate(columns, start=1):
-            value = row.get(column, "")
-            if column == COL_NUMBER and str(value).isdigit():
-                ws.cell(row=row_idx, column=col_idx, value=int(value)).number_format = "0"
-            elif value:
-                cell = ws.cell(row=row_idx, column=col_idx)
-                cell.value = _export_text(value)
-                cell.data_type = "s"
+    for row_idx, call in enumerate(result.calls, start=2):
+        _write_row(ws, row_idx, call.row, columns)
+    _write_review_sheet(wb.create_sheet(SHEET_REVIEW), result, columns)
     buffer = io.BytesIO()
     wb.save(buffer)
     return buffer.getvalue()

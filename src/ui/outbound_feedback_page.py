@@ -263,7 +263,7 @@ def outbound_feedback_page() -> None:
     st.markdown(_EXCEL_BUTTON_CSS % t("outbound_download_excel", lang), unsafe_allow_html=True)
     with download_slot.container():
         icon_download_button(
-            data=build_excel_bytes([c.row for c in result.calls], cfg["outbound_feedback"]["output_columns"]),
+            data=build_excel_bytes(result, cfg["outbound_feedback"]["output_columns"]),
             file_name="outbound_feedback.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             key="outbound_excel", lang=lang,
