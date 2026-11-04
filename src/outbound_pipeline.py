@@ -1,6 +1,6 @@
 """خط أنابيب صفحة "اوت باوند – فيد باك": تصدير صوت -> صفوف بنفس أعمدة شيت المزروع. مسار مستقل
 تمامًا عن inbound_pipeline.py وpipeline.py — يقرأ الملف المرفوع فقط ولا يتعامل مع الشيت إطلاقًا، لا
-قراءة ولا كتابة. الصفوف تطلع كملف Excel أو نص للنسخ واللصق.
+قراءة ولا كتابة. الصفوف تطلع كملف Excel.
 
 القاعدة الأساسية: كل قيمة بعمود له قائمة تُطابَق حرفيًا ضد outbound_feedback.allowed_values
 بـconfig.yaml، وأي قيمة لا تطابق تبقى فاضية."""
@@ -606,15 +606,6 @@ def build_result(
 def _export_text(value) -> str:
     """القيم تُنسخ وتُلصق بالشيت، فما يبدأ نص بحرف يحوّله الشيت لصيغة، ولا يكسر Tab أو سطر جديد الصف."""
     return re.sub(r"[\t\r\n]+", " ", str(value)).strip().lstrip("=+-@ ")
-
-
-def build_tsv(rows: list, columns: list) -> str:
-    """صفوف بدون هيدر، مفصولة بـTab وبترتيب output_columns، للصق بـCtrl+V. علامة " تتبدل لأن الشيت
-    يعتبر الخلية اللي تبدأ فيها مقتبسة وممكن يدمجها مع اللي بعدها."""
-    return "\n".join(
-        "\t".join(_export_text(row.get(column, "")).replace('"', "'") for column in columns)
-        for row in rows
-    )
 
 
 def build_excel_bytes(rows: list, columns: list) -> bytes:

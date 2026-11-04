@@ -1,5 +1,5 @@
-"""صفحة "اوت باوند – فيد باك": رفع تصدير صوت -> معاينة الصفوف -> تحميل Excel أو نسخ الصفوف. مستقلة تمامًا عن
-صفحتي Inbound Call ورفع الأوفلاين، وتعيد استخدام مكوّنات التصميم المشتركة فقط بدون أي تعديل عليها.
+"""صفحة "اوت باوند – فيد باك": رفع تصدير صوت -> زر تحميل Excel بالهيدر + خمس بطاقات، لكل بطاقة سهم يفتح قائمة مكالماتها.
+مستقلة تمامًا عن صفحتي Inbound Call ورفع الأوفلاين، وتعيد استخدام مكوّنات التصميم المشتركة فقط بدون أي تعديل عليها.
 المنطق بـsrc/outbound_pipeline.py، والصفحة تقرأ الملف المرفوع فقط ولا تتعامل مع الشيت إطلاقًا."""
 import hashlib
 import html
@@ -10,21 +10,13 @@ import streamlit as st
 
 from src.config import load_config
 from src.outbound_pipeline import (
-    COL_AGENT,
     COL_CALL_STATUS,
-    COL_CHANNEL,
     COL_COMPANY,
-    COL_DATE,
-    COL_DETAILS,
-    COL_DIRECTION,
     COL_HOW_HEARD,
     COL_NAME,
     COL_NUMBER,
     COL_REMARK,
     COL_SATISFIED,
-    COL_SOCIAL_MEDIA,
-    COL_STATUS,
-    COL_SUBJECT,
     DISSATISFIED,
     SATISFIED,
     STATUS_ANSWER,
@@ -32,42 +24,92 @@ from src.outbound_pipeline import (
     OutboundInputError,
     build_excel_bytes,
     build_result,
-    build_tsv,
     load_export,
 )
 from src.translations import t
 
 from .empty_state import render_empty_state
-from .header import render_footer, render_page_header
-from .kpi_card import KPICardData, render_kpi_row
-from .step_indicator import render_step_indicator
+from .header import render_footer
+from .icon_button import icon_download_button
 
-_STEPS = ["upload", "process", "results"]
 _PREVIEW_KEY = "outbound_preview"
+_OPEN_CARD_KEY = "outbound_open_card"
 
 _CALL_LINK = "_call_url"  # مفتاح عرض فقط، ليس من أعمدة الشيت
 
-_PREVIEW_COLUMNS = [
+_LIST_COLUMNS = [
     (COL_NAME, "outbound_col_name"),
     (COL_NUMBER, "outbound_col_number"),
-    (_CALL_LINK, "outbound_col_call_link"),
-    (COL_DIRECTION, "outbound_col_direction"),
-    (COL_CALL_STATUS, "outbound_col_call_status"),
-    (COL_CHANNEL, "outbound_col_channel"),
-    (COL_SOCIAL_MEDIA, "outbound_col_social"),
-    (COL_SUBJECT, "outbound_col_subject"),
-    (COL_DETAILS, "outbound_col_details"),
-    (COL_STATUS, "outbound_col_status"),
-    (COL_DATE, "outbound_col_date"),
     (COL_COMPANY, "outbound_col_company"),
     (COL_SATISFIED, "outbound_col_satisfied"),
     (COL_HOW_HEARD, "outbound_col_how_heard"),
     (COL_REMARK, "outbound_col_remark"),
-    (COL_AGENT, "outbound_col_agent"),
+    (_CALL_LINK, "outbound_col_listen"),
 ]
-_ISSUE_COLUMNS = [(COL_NAME, "outbound_col_name"), (COL_NUMBER, "outbound_col_number")]
-_FOLLOW_UP_COLUMNS = _ISSUE_COLUMNS + [(_CALL_LINK, "outbound_col_call_link")]
-_DISSATISFIED_COLUMNS = _ISSUE_COLUMNS + [(COL_COMPANY, "outbound_col_company"), (COL_REMARK, "outbound_col_remark")]
+_NO_ANSWER_COLUMNS = [
+    (COL_NAME, "outbound_col_name"),
+    (COL_NUMBER, "outbound_col_number"),
+    (COL_COMPANY, "outbound_col_company"),
+    (_CALL_LINK, "outbound_col_listen"),
+]
+
+# (المعرّف، مفتاح الترجمة، الأيقونة، بطاقة معبّأة، شرط الصف، أعمدة القائمة)
+_CARDS = [
+    ("total", "outbound_kpi_total", "call", True, lambda r: True, _LIST_COLUMNS),
+    ("answer", "outbound_kpi_answer", "call_made", False, lambda r: r[COL_CALL_STATUS] == STATUS_ANSWER, _LIST_COLUMNS),
+    ("no_answer", "outbound_kpi_no_answer", "phone_missed", False, lambda r: r[COL_CALL_STATUS] == STATUS_NO_ANSWER, _NO_ANSWER_COLUMNS),
+    ("satisfied", "outbound_kpi_satisfied", "thumb_up", False, lambda r: r[COL_SATISFIED] == SATISFIED, _LIST_COLUMNS),
+    ("dissatisfied", "outbound_kpi_dissatisfied", "thumb_down", False, lambda r: r[COL_SATISFIED] == DISSATISFIED, _LIST_COLUMNS),
+]
+
+# theme.py يمد أي زر داخل بطاقة KPI فوق البطاقة كاملة وبشفافية، فهنا يُرجَّع مربعًا صغيرًا بالزاوية.
+_PAGE_CSS = """
+<style>
+div[class*="st-key-kpi_card_"][class*="_outbound_"]:has(div[data-testid="stButton"]) { cursor: default; }
+div[class*="st-key-outbound_chevron_"] {
+    position: absolute !important;
+    top: 12px;
+    inset-inline-end: 12px;
+    width: 32px !important;
+    height: 32px;
+    z-index: 5;
+}
+div[class*="st-key-kpi_card_"][class*="_outbound_"] div[data-testid="stButton"] {
+    position: static;
+    width: 32px;
+    height: 32px;
+}
+div[class*="st-key-kpi_card_"][class*="_outbound_"] div[data-testid="stButton"] button {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    opacity: 1;
+    border: none;
+    border-radius: 8px;
+    background: #F3EEFF;
+    color: #683EB5;
+    padding: 0;
+    line-height: 1;
+}
+div[class*="st-key-kpi_card_"][class*="_outbound_"] div[data-testid="stButton"] button p {
+    color: #683EB5;
+    font-size: 22px;
+    line-height: 1;
+}
+</style>
+"""
+
+# icon_download_button المشترك ممنوع تعديله ونص التلميح فيه ثابت "تصدير CSV"، فالنص يُستبدل هنا لهذا الزر
+# فقط. والثيم يفرض ارتفاع 48px على أزرار التحميل، فيُرجَّع 40×40 ويُدفع لأقصى يسار الهيدر.
+_EXCEL_BUTTON_CSS = """
+<style>
+div[class*="st-key-maz_icon_dl_outbound_excel"] { width: 40px !important; margin-inline-start: auto; }
+div[class*="st-key-maz_icon_dl_outbound_excel"] [data-testid="stDownloadButton"] button { min-height: 40px; }
+div[class*="st-key-maz_icon_dl_outbound_excel"] .maz-icon-dl-tooltip { font-size: 0; }
+div[class*="st-key-maz_icon_dl_outbound_excel"] .maz-icon-dl-tooltip::after { content: "%s"; font-size: 0.72rem; }
+</style>
+"""
 
 
 def _icon_tile(name: str) -> str:
@@ -78,12 +120,11 @@ def _display_row(call) -> dict:
     return {**call.row, _CALL_LINK: call.call_url}
 
 
-def _table_html(rows: list, columns: list, lang: str, wide: bool = False) -> str:
-    """نفس ستايل .maz-table بجدول Inbound Call. كل قيمة تمر عبر html.escape لأنها من ملف خارجي.
-    wide: جدول المعاينة (14 عمود) بعرض أكبر وتمرير أفقي بدل كسر الكلمات داخل الخلايا الضيقة."""
-    table_style = ' style="table-layout:auto;width:max-content;min-width:100%;"' if wide else ""
-    cell_style = ' style="white-space:nowrap;"' if wide else ""
-    note_style = ' style="min-width:260px;white-space:normal;"' if wide else ""
+def _table_html(rows: list, columns: list, lang: str) -> str:
+    """نفس ستايل .maz-table بجدول Inbound Call، بعرض يتمدد وتمرير أفقي بدل كسر الكلمات داخل الخلايا.
+    كل قيمة تمر عبر html.escape لأنها من ملف خارجي."""
+    cell_style = ' style="white-space:nowrap;"'
+    note_style = ' style="min-width:260px;white-space:normal;"'
     header = "".join(f"<th{cell_style}>{html.escape(t(key, lang))}</th>" for _, key in columns)
     body = []
     for row in rows:
@@ -97,27 +138,33 @@ def _table_html(rows: list, columns: list, lang: str, wide: bool = False) -> str
                     f'<td{cell_style}><a href="{html.escape(value)}" target="_blank" rel="noopener noreferrer">'
                     f'{html.escape(t("outbound_listen_call", lang))}</a></td>'
                 )
-            elif column in (COL_NUMBER, COL_DATE):
+            elif column == COL_NUMBER:
                 cells.append(f'<td{cell_style}><bdi dir="ltr" style="unicode-bidi:isolate;">{html.escape(value)}</bdi></td>')
             else:
                 style = note_style if column == COL_REMARK else cell_style
                 cells.append(f"<td{style}>{html.escape(value)}</td>")
         body.append(f"<tr>{''.join(cells)}</tr>")
     return (
-        f'<div class="maz-table-scroll"><table class="maz-table"{table_style}>'
+        '<div class="maz-table-scroll"><table class="maz-table" style="table-layout:auto;width:max-content;min-width:100%;">'
         f"<thead><tr>{header}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"
     )
 
 
-def _render_table_section(key: str, title: str, rows: list, columns: list, lang: str, wide: bool = False) -> None:
-    with st.container(key=f"maz_table_card_{key}"):
-        st.markdown(f"<h3>{html.escape(title)}</h3>", unsafe_allow_html=True)
-        st.markdown(_table_html(rows, columns, lang, wide), unsafe_allow_html=True)
+def _render_header(lang: str):
+    """نفس بطاقة render_page_header، وخانة يسار العنوان يُرسم فيها زر التحميل بعد قراءة الملف."""
+    subtitle = t("outbound_subtitle_with_date", lang).format(date=date.today().strftime("%Y-%m-%d"))
+    with st.container(key="maz_page_header"):
+        col_text, col_action = st.columns([3, 1], vertical_alignment="center")
+        with col_text:
+            st.markdown(f'<h1>{t("outbound_feedback_title", lang)}</h1>', unsafe_allow_html=True)
+            st.markdown(f'<div class="maz-page-subtitle">{subtitle}</div>', unsafe_allow_html=True)
+        with col_action:
+            return st.empty()
 
 
 def _load_preview(file_bytes: bytes, file_name: str, cfg: dict):
     """المعاينة تُحسب مرة واحدة لكل ملف: Streamlit يعيد تشغيل الصفحة مع كل ضغطة، وإعادة الترجمة
-    والتحليل كل مرة بطيئة بلا فائدة."""
+    والتحليل كل مرة بطيئة بلا فائدة. ملف جديد يقفل أي قائمة مفتوحة من الملف السابق."""
     digest = hashlib.md5(file_bytes).hexdigest()
     cached = st.session_state.get(_PREVIEW_KEY)
     if cached and cached["digest"] == digest:
@@ -127,62 +174,55 @@ def _load_preview(file_bytes: bytes, file_name: str, cfg: dict):
     df = load_export(buffer)
     result = build_result(df, cfg)
     st.session_state[_PREVIEW_KEY] = {"digest": digest, "result": result}
+    st.session_state.pop(_OPEN_CARD_KEY, None)
     return result
 
 
-def _render_copy_button(rows: list, columns: list, lang: str) -> None:
-    text = build_tsv(rows, columns)
-    try:
-        from .outbound_copy_button import render_copy_button
-    except ImportError:
-        st.caption(t("outbound_copy_fallback", lang))
-        st.code(text, language=None)
+def _toggle_card(card_id: str) -> None:
+    is_open = st.session_state.get(_OPEN_CARD_KEY) == card_id
+    st.session_state[_OPEN_CARD_KEY] = None if is_open else card_id
+
+
+def _render_cards(calls: list, lang: str) -> None:
+    """render_kpi_row المشتركة ما تدعم سهم بالزاوية، فالبطاقة تُرسم هنا بنفس كلاسات التصميم."""
+    open_card = st.session_state.get(_OPEN_CARD_KEY)
+    for col, (card_id, label_key, icon, accent, matches, _) in zip(st.columns(len(_CARDS)), _CARDS):
+        count = sum(1 for c in calls if matches(c.row))
+        with col, st.container(key=f"kpi_card_{'accent' if accent else 'plain'}_outbound_{card_id}"):
+            st.markdown(
+                f'<div class="maz-kpi-inner">'
+                f'<div class="maz-kpi-label"><span class="maz-kpi-icon">{_icon_tile(icon)}</span> {html.escape(t(label_key, lang))}</div>'
+                f'<div class="maz-kpi-value">{count:,}</div>'
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+            st.button(
+                "▴" if open_card == card_id else "▾",
+                key=f"outbound_chevron_{card_id}",
+                on_click=_toggle_card,
+                args=(card_id,),
+            )
+
+
+def _render_open_list(calls: list, lang: str) -> None:
+    open_card = st.session_state.get(_OPEN_CARD_KEY)
+    card = next((c for c in _CARDS if c[0] == open_card), None)
+    if card is None:
         return
-    render_copy_button(
-        text,
-        t("outbound_copy_button", lang),
-        t("outbound_copied_message", lang),
-        t("outbound_copy_failed", lang),
-        "rtl" if lang == "ar" else "ltr",
-    )
-
-
-def _render_extra_columns(extras, lang: str) -> None:
-    def label(column: str) -> str:
-        if column in extras.transcript:
-            return f'{column} ({t("outbound_extra_transcript", lang)})'
-        if column in extras.summary:
-            return f'{column} ({t("outbound_extra_summary", lang)})'
-        if column in extras.source:
-            return f'{column} ({t("outbound_extra_source", lang)})'
-        return column
-
-    names = "، ".join(label(c) for c in extras.names) or t("outbound_extra_none", lang)
-    text = t("outbound_extra_columns", lang).format(columns=html.escape(names))
-    st.markdown(f'<p class="maz-upload-hint">{text}</p>', unsafe_allow_html=True)
-
-
-def _render_warnings(result, lang: str) -> None:
-    if result.unlabelled_transcripts:
-        st.warning(t("outbound_warning_unlabelled", lang).format(count=result.unlabelled_transcripts))
-    if result.excluded_no_number:
-        st.warning(t("outbound_warning_no_number", lang).format(count=result.excluded_no_number))
-    if result.invalid_numbers:
-        st.warning(t("outbound_warning_invalid_numbers", lang).format(items=", ".join(result.invalid_numbers)))
-    if result.missing_dates:
-        st.warning(t("outbound_warning_missing_dates", lang).format(count=result.missing_dates))
-    if result.unmatched:
-        items = ", ".join(sorted({f'{u["column"]}: {u["raw_value"]}' for u in result.unmatched}))
-        st.warning(t("outbound_warning_unmatched", lang).format(items=items))
+    _, label_key, _, _, matches, columns = card
+    rows = [_display_row(c) for c in calls if matches(c.row)]
+    with st.container(key="maz_table_card_outbound_list"):
+        st.markdown(f"<h3>{html.escape(t(label_key, lang))} ({len(rows):,})</h3>", unsafe_allow_html=True)
+        if rows:
+            st.markdown(_table_html(rows, columns, lang), unsafe_allow_html=True)
+        else:
+            render_empty_state(t("outbound_list_empty", lang))
 
 
 def outbound_feedback_page() -> None:
     lang = st.session_state.lang
-    step_labels = [t("inbound_step_upload_label", lang), t("inbound_step_process_label", lang), t("inbound_step_results_label", lang)]
-    subtitle = t("outbound_subtitle_with_date", lang).format(date=date.today().strftime("%Y-%m-%d"))
-
-    render_page_header(t("outbound_feedback_title", lang), subtitle, lang)
-    step_box = st.empty()
+    download_slot = _render_header(lang)
+    st.markdown(_PAGE_CSS, unsafe_allow_html=True)
 
     with st.container(key="maz_card_outbound_upload"):
         uploaded_file = st.file_uploader(
@@ -199,8 +239,6 @@ def outbound_feedback_page() -> None:
         st.markdown(f'<p class="maz-upload-hint">{t("outbound_file_only_hint", lang)}</p>', unsafe_allow_html=True)
 
     if uploaded_file is None:
-        with step_box.container():
-            render_step_indicator("upload", step_labels, steps=_STEPS)
         render_footer(lang)
         return
 
@@ -209,70 +247,29 @@ def outbound_feedback_page() -> None:
         with st.spinner(t("outbound_spinner_reading", lang)):
             result = _load_preview(uploaded_file.getvalue(), uploaded_file.name, cfg)
     except OutboundInputError as e:
-        with step_box.container():
-            render_step_indicator("process", step_labels, steps=_STEPS)
         st.error(t("outbound_error_missing_columns", lang).format(columns=e))
         render_footer(lang)
         return
     except Exception as e:
-        with step_box.container():
-            render_step_indicator("process", step_labels, steps=_STEPS)
         st.error(f"{t('outbound_error_processing', lang)}\n\n{e}")
         render_footer(lang)
         return
 
-    with step_box.container():
-        render_step_indicator("results", step_labels, steps=_STEPS)
-
-    _render_extra_columns(result.extra_columns, lang)
-    _render_warnings(result, lang)
-
-    all_rows = [c.row for c in result.calls]
-    if not all_rows:
+    if not result.calls:
         render_empty_state(t("outbound_warning_no_rows", lang))
         render_footer(lang)
         return
 
-    def count(column: str, value: str) -> int:
-        return sum(1 for r in all_rows if r[column] == value)
-
-    render_kpi_row([
-        KPICardData(label=t("outbound_kpi_total", lang), value=f"{len(all_rows):,}", icon=_icon_tile("call"), accent=True),
-        KPICardData(label=t("outbound_kpi_answer", lang), value=f"{count(COL_CALL_STATUS, STATUS_ANSWER):,}", icon=_icon_tile("call_made")),
-        KPICardData(label=t("outbound_kpi_no_answer", lang), value=f"{count(COL_CALL_STATUS, STATUS_NO_ANSWER):,}", icon=_icon_tile("phone_missed")),
-        KPICardData(label=t("outbound_kpi_satisfied", lang), value=f"{count(COL_SATISFIED, SATISFIED):,}", icon=_icon_tile("thumb_up")),
-        KPICardData(label=t("outbound_kpi_dissatisfied", lang), value=f"{count(COL_SATISFIED, DISSATISFIED):,}", icon=_icon_tile("thumb_down")),
-    ])
-
-    follow_up_rows = [_display_row(c) for c in result.calls if c.needs_follow_up]
-    if follow_up_rows:
-        st.warning(t("outbound_alert_follow_up", lang).format(count=len(follow_up_rows)))
-        _render_table_section("outbound_follow_up", t("outbound_alert_follow_up_title", lang), follow_up_rows, _FOLLOW_UP_COLUMNS, lang)
-
-    missing_how_rows = [r for r in all_rows if r[COL_CALL_STATUS] == STATUS_ANSWER and not r[COL_HOW_HEARD]]
-    if missing_how_rows:
-        st.warning(t("outbound_alert_missing_how", lang).format(count=len(missing_how_rows)))
-        _render_table_section("outbound_missing_how", t("outbound_alert_missing_how_title", lang), missing_how_rows, _ISSUE_COLUMNS, lang)
-
-    dissatisfied_rows = [r for r in all_rows if r[COL_SATISFIED] == DISSATISFIED]
-    if dissatisfied_rows:
-        _render_table_section("outbound_dissatisfied", t("outbound_dissatisfied_title", lang), dissatisfied_rows, _DISSATISFIED_COLUMNS, lang)
-
-    preview_rows = [_display_row(c) for c in result.calls]
-    _render_table_section("outbound_preview", t("outbound_rows_title", lang).format(count=len(preview_rows)), preview_rows, _PREVIEW_COLUMNS, lang, wide=True)
-
-    st.markdown(f'<p class="maz-upload-hint">{t("outbound_paste_note", lang)}</p>', unsafe_allow_html=True)
-    columns = cfg["outbound_feedback"]["output_columns"]
-    col_copy, col_download = st.columns(2)
-    with col_copy:
-        _render_copy_button(all_rows, columns, lang)
-    with col_download:
-        st.download_button(
-            t("outbound_download_excel", lang),
-            data=build_excel_bytes(all_rows, columns),
+    st.markdown(_EXCEL_BUTTON_CSS % t("outbound_download_excel", lang), unsafe_allow_html=True)
+    with download_slot.container():
+        icon_download_button(
+            data=build_excel_bytes([c.row for c in result.calls], cfg["outbound_feedback"]["output_columns"]),
             file_name="outbound_feedback.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="outbound_download_excel", use_container_width=True,
+            key="outbound_excel", lang=lang,
         )
+
+    _render_cards(result.calls, lang)
+    _render_open_list(result.calls, lang)
 
     render_footer(lang)

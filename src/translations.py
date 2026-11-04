@@ -318,6 +318,8 @@ TRANSLATIONS = {
     "outbound_col_how_heard": {"ar": "كيف عرف عنّا", "en": "How did you hear about us"},
     "outbound_col_remark": {"ar": "الملاحظة", "en": "Note"},
     "outbound_col_agent": {"ar": "Agent", "en": "Agent"},
+    "outbound_col_listen": {"ar": "سماع المكالمة 🔗", "en": "Listen to call 🔗"},
+    "outbound_list_empty": {"ar": "ما فيه مكالمات في هذي البطاقة.", "en": "No calls in this card."},
     "outbound_col_social": {"ar": "سوشال ميديا", "en": "Social Media"},
     "outbound_file_only_hint": {
         "ar": "ارفع تصدير المكالمات (Excel أو CSV). الصفحة تقرأ الملف المرفوع بس، وما تتعامل مع شيت المزروع.",
