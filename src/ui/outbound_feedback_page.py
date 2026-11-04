@@ -255,7 +255,7 @@ def outbound_feedback_page() -> None:
         render_footer(lang)
         return
 
-    if not result.calls:
+    if not result.calls and not result.excluded_calls:
         render_empty_state(t("outbound_warning_no_rows", lang))
         render_footer(lang)
         return
