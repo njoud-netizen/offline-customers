@@ -318,6 +318,16 @@ TRANSLATIONS = {
     "outbound_col_how_heard": {"ar": "كيف عرف عنّا", "en": "How did you hear about us"},
     "outbound_col_remark": {"ar": "الملاحظة", "en": "Note"},
     "outbound_col_agent": {"ar": "Agent", "en": "Agent"},
+    "outbound_col_social": {"ar": "سوشال ميديا", "en": "Social Media"},
+    "outbound_file_only_hint": {
+        "ar": "ارفع تصدير المكالمات (Excel أو CSV). الصفحة تقرأ الملف المرفوع بس، وما تتعامل مع شيت المزروع.",
+        "en": "Upload the calls export (Excel or CSV). This page only reads the uploaded file and never touches the Almazro sheet.",
+    },
+    "outbound_spinner_reading": {"ar": "جاري قراءة الملف...", "en": "Reading the file..."},
+    "outbound_paste_note": {
+        "ar": "اللصق يبدأ من عمود الاسم (Name)، لأن الصفوف تبدأ بالاسم وتنتهي بـ Agent.",
+        "en": "Paste starting from the Name column: rows start with Name and end with Agent.",
+    },
     "outbound_read_only_hint": {
         "ar": "ارفع تصدير المكالمات (Excel أو CSV). الصفحة تقرأ من الشيت بس، وما تكتب فيه أي شي.",
         "en": "Upload the calls export (Excel or CSV). This page only reads from the sheet and never writes to it.",

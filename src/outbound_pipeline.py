@@ -1,10 +1,9 @@
 """خط أنابيب صفحة "اوت باوند – فيد باك": تصدير صوت -> صفوف بنفس أعمدة شيت المزروع. مسار مستقل
-تمامًا عن inbound_pipeline.py وpipeline.py — يقرأ من الشيت فقط (القوائم المنسدلة وفحص التكرار) ولا
-يكتب فيه أي شيء إطلاقًا. الصفوف تطلع كملف Excel أو نص للنسخ واللصق.
+تمامًا عن inbound_pipeline.py وpipeline.py — يقرأ الملف المرفوع فقط ولا يتعامل مع الشيت إطلاقًا، لا
+قراءة ولا كتابة. الصفوف تطلع كملف Excel أو نص للنسخ واللصق.
 
-القاعدة الأساسية: كل قيمة بعمود له قائمة منسدلة تُطابَق حرفيًا ضد قائمة التبويب المستهدف الحية،
-وأي قيمة لا تطابق تبقى فاضية. الأعمدة تُقرأ بالموقع لا بالاسم، لأن عناوين الهيدر الفعلية تختلف بين
-التبويبات (مثال حقيقي: A1 بتبويب Sara نص عشوائي، وعمودا WhatsApp مكرران بـNjoud)."""
+القاعدة الأساسية: كل قيمة بعمود له قائمة تُطابَق حرفيًا ضد outbound_feedback.allowed_values
+بـconfig.yaml، وأي قيمة لا تطابق تبقى فاضية."""
 import io
 import json
 import re
@@ -16,10 +15,8 @@ from typing import Callable
 import openpyxl
 import pandas as pd
 
-from .config import credentials_path
 from .phone import normalize_phone
 from .sheet_values import match_literal
-from .sheets import get_client
 from .translate_helper import translate_to_arabic_status
 
 REQUIRED_COLUMNS = [
@@ -33,12 +30,12 @@ _TRANSCRIPT_KEYS = ("transcript", "transcription", "conversation", "محادثه
 _SUMMARY_KEYS = ("summary", "ملخص")
 _SOURCE_KEYS = ("howdidyouhear", "leadsource", "كيفعرف", "source")
 
-COL_REGION = "Region"
 COL_NAME = "Name"
 COL_NUMBER = "Number"
 COL_DIRECTION = "Inbound calls/out bound calls"
 COL_CALL_STATUS = "Call Status"
 COL_CHANNEL = "WhatsApp&Calls"
+COL_SOCIAL_MEDIA = "Social Media"
 COL_SUBJECT = "Subject"
 COL_DETAILS = "Details"
 COL_STATUS = "Status"
@@ -97,16 +94,8 @@ class OutboundInputError(Exception):
 
 
 @dataclass
-class SheetContext:
-    tab: str
-    dropdowns: dict  # {اسم العمود حسب config: [قيم القائمة المنسدلة حرفيًا]}
-    existing_keys: set  # {(آخر 9 أرقام, التاريخ)} لصفوف out bound + Feedback + AI الموجودة
-
-
-@dataclass
 class OutboundCall:
-    row: dict  # بأعمدة google_sheets.columns بالضبط وبنفس الترتيب
-    is_duplicate: bool = False
+    row: dict  # بأعمدة outbound_feedback.output_columns بالضبط وبنفس الترتيب
     needs_follow_up: bool = False  # العميل طلب التواصل لاحقًا
     call_url: str = ""  # للعرض بالصفحة فقط: خارج row عمدًا فلا يصل للشيت ولا لملف Excel
 
@@ -128,10 +117,6 @@ class OutboundResult:
     missing_dates: int = 0
     extra_columns: ExtraColumns = field(default_factory=ExtraColumns)
     unlabelled_transcripts: int = 0  # نصوص ما تحدد المتحدث، فما تُستخدم حتى لا يختلط كلام الإيجنت بالعميل
-
-    @property
-    def duplicate_count(self) -> int:
-        return sum(1 for c in self.calls if c.is_duplicate)
 
 
 @dataclass
@@ -369,16 +354,6 @@ def format_sheet_date(value: date) -> str:
     return f"{value.day:02d} / {_MONTHS[value.month - 1]} /{value.year}"
 
 
-def parse_sheet_date(text: str) -> "date | None":
-    m = _SHEET_DATE_RE.match(str(text or ""))
-    if not m or m.group(2).title() not in _MONTHS:
-        return None
-    try:
-        return date(int(m.group(3)), _MONTHS.index(m.group(2).title()) + 1, int(m.group(1)))
-    except ValueError:
-        return None
-
-
 def extract_company_text(agent_name: str) -> str:
     """"ساره : ليزي بوي  | رضا العملاء" -> "ليزي بوي"."""
     text = _clean(agent_name)
@@ -541,70 +516,21 @@ def _dissatisfied_reason(speech: "CallSpeech | None", request: str, reason: str,
     return _shorten(request) if _ARABIC_RE.search(request) else NOTE_GENERIC_DISSATISFIED
 
 
-def _literal(column: str, value: str, ctx: SheetContext, unmatched: list) -> str:
-    literal = match_literal(value, ctx.dropdowns.get(column) or [])
+def _allowed_values(cfg: dict, column: str) -> list:
+    return cfg["outbound_feedback"]["allowed_values"].get(column) or []
+
+
+def _literal(column: str, value: str, cfg: dict, unmatched: list) -> str:
+    literal = match_literal(value, _allowed_values(cfg, column))
     if value and not literal:
         unmatched.append({"column": column, "raw_value": value})
     return literal
 
 
-def _row_key(number: str, value: "date | None") -> tuple:
-    return (re.sub(r"\D", "", number or "")[-9:], value)
-
-
-def existing_row_keys(values: list, columns: list) -> set:
-    idx = {name: columns.index(name) for name in (COL_NUMBER, COL_DIRECTION, COL_SUBJECT, COL_DATE, COL_AGENT)}
-
-    def cell(row, name):
-        i = idx[name]
-        return row[i].strip() if i < len(row) else ""
-
-    keys = set()
-    for row in values[1:]:
-        if (cell(row, COL_DIRECTION).lower() == DIRECTION_OUTBOUND
-                and cell(row, COL_SUBJECT).lower() == SUBJECT_FEEDBACK.lower()
-                and cell(row, COL_AGENT) == AGENT_AI):
-            keys.add(_row_key(cell(row, COL_NUMBER), parse_sheet_date(cell(row, COL_DATE))))
-    return keys
-
-
-def _extract_dropdowns(cells: list, columns: list) -> dict:
-    found = {}
-    for i, column in enumerate(columns):
-        dv = cells[i].get("dataValidation") if i < len(cells) else None
-        condition = (dv or {}).get("condition", {})
-        if condition.get("type") == "ONE_OF_LIST":
-            values = [v.get("userEnteredValue", "") for v in condition.get("values", [])]
-            found[column] = [v for v in values if v]
-    return found
-
-
-def load_sheet_context(cfg: dict) -> SheetContext:
-    """قراءة فقط. القوائم تُقرأ من التبويب المستهدف نفسه عند أول صف فاضي (مكان الكتابة الفعلي)،
-    ثم الصف 2 احتياطًا — القوائم تختلف فعليًا بين التبويبات وبين الصفوف."""
-    google_cfg = cfg["google_sheets"]
-    columns = google_cfg["columns"]
-    tab = cfg["outbound_feedback"]["target_tab"]
-    sh = get_client(str(credentials_path(cfg))).open_by_key(google_cfg["spreadsheet_id"])
-    ws = sh.worksheet(tab)
-    values = ws.get_all_values()
-    landing = min(len(values) + 1, ws.row_count)
-    meta = sh.fetch_sheet_metadata(params={
-        "ranges": [f"'{tab}'!A2:ZZ2", f"'{tab}'!A{landing}:ZZ{landing}"],
-        "includeGridData": True,
-        "fields": "sheets(data(rowData(values(dataValidation))))",
-    })
-    dropdowns = {}
-    for block in meta["sheets"][0]["data"]:  # الترتيب مقصود: قائمة مكان الكتابة تغلب قائمة الصف 2
-        rows = block.get("rowData", [])
-        dropdowns.update(_extract_dropdowns(rows[0].get("values", []) if rows else [], columns))
-    return SheetContext(tab=tab, dropdowns=dropdowns, existing_keys=existing_row_keys(values, columns))
-
-
 def build_result(
-    df: pd.DataFrame, cfg: dict, ctx: SheetContext, translate: Callable = translate_to_arabic_status,
+    df: pd.DataFrame, cfg: dict, translate: Callable = translate_to_arabic_status,
 ) -> OutboundResult:
-    columns = cfg["google_sheets"]["columns"]
+    columns = cfg["outbound_feedback"]["output_columns"]
     extras = detect_extra_columns(df)
     result = OutboundResult(extra_columns=extras)
     url_column = next((c for c in extras.names if _column_key(c) == "callurl"), None)
@@ -647,8 +573,8 @@ def build_result(
             elif follow_up:
                 notes.append(NOTE_CALLBACK)
             remark = " | ".join(notes)
-            how_heard = _resolve_how_heard(src, extras, speech, cfg, ctx.dropdowns.get(COL_HOW_HEARD) or [], result.unmatched)
-            details_values = ctx.dropdowns.get(COL_DETAILS) or []
+            how_heard = _resolve_how_heard(src, extras, speech, cfg, _allowed_values(cfg, COL_HOW_HEARD), result.unmatched)
+            details_values = _allowed_values(cfg, COL_DETAILS)
             spoken_text = "\n".join([*speech.customer, *speech.confirmed]) if speech else ""
             details = _resolve_details(spoken_text, cfg, details_values) or _resolve_details(request, cfg, details_values)
 
@@ -656,22 +582,21 @@ def build_result(
         row.update({
             COL_NAME: _clean(src["Customer Name"]),
             COL_NUMBER: number,
-            COL_DIRECTION: _literal(COL_DIRECTION, DIRECTION_OUTBOUND, ctx, result.unmatched),
-            COL_CALL_STATUS: _literal(COL_CALL_STATUS, STATUS_ANSWER if answered else STATUS_NO_ANSWER, ctx, result.unmatched),
-            COL_CHANNEL: _literal(COL_CHANNEL, CHANNEL_CALL, ctx, result.unmatched),
-            COL_SUBJECT: _literal(COL_SUBJECT, SUBJECT_FEEDBACK, ctx, result.unmatched),
+            COL_DIRECTION: _literal(COL_DIRECTION, DIRECTION_OUTBOUND, cfg, result.unmatched),
+            COL_CALL_STATUS: _literal(COL_CALL_STATUS, STATUS_ANSWER if answered else STATUS_NO_ANSWER, cfg, result.unmatched),
+            COL_CHANNEL: _literal(COL_CHANNEL, CHANNEL_CALL, cfg, result.unmatched),
+            COL_SUBJECT: _literal(COL_SUBJECT, SUBJECT_FEEDBACK, cfg, result.unmatched),
             COL_DETAILS: details,
-            COL_STATUS: _literal(COL_STATUS, STATUS_DONE, ctx, result.unmatched),
+            COL_STATUS: _literal(COL_STATUS, STATUS_DONE, cfg, result.unmatched),
             COL_DATE: format_sheet_date(created) if created else "",
-            COL_COMPANY: _resolve_company(src["Agent Name"], cfg, ctx.dropdowns.get(COL_COMPANY) or [], result.unmatched),
-            COL_SATISFIED: _literal(COL_SATISFIED, satisfied, ctx, result.unmatched),
-            COL_HOW_HEARD: _literal(COL_HOW_HEARD, how_heard, ctx, result.unmatched),
+            COL_COMPANY: _resolve_company(src["Agent Name"], cfg, _allowed_values(cfg, COL_COMPANY), result.unmatched),
+            COL_SATISFIED: _literal(COL_SATISFIED, satisfied, cfg, result.unmatched),
+            COL_HOW_HEARD: _literal(COL_HOW_HEARD, how_heard, cfg, result.unmatched),
             COL_REMARK: remark,
             COL_AGENT: AGENT_AI,
         })
         result.calls.append(OutboundCall(
             row=row,
-            is_duplicate=_row_key(number, created) in ctx.existing_keys,
             needs_follow_up=needs_follow_up,
             call_url=_safe_call_url(src[url_column]) if url_column else "",
         ))
@@ -684,7 +609,7 @@ def _export_text(value) -> str:
 
 
 def build_tsv(rows: list, columns: list) -> str:
-    """صفوف بدون هيدر، مفصولة بـTab وبنفس ترتيب الشيت، للصق بـCtrl+V. علامة " تتبدل لأن الشيت
+    """صفوف بدون هيدر، مفصولة بـTab وبترتيب output_columns، للصق بـCtrl+V. علامة " تتبدل لأن الشيت
     يعتبر الخلية اللي تبدأ فيها مقتبسة وممكن يدمجها مع اللي بعدها."""
     return "\n".join(
         "\t".join(_export_text(row.get(column, "")).replace('"', "'") for column in columns)
@@ -693,7 +618,7 @@ def build_tsv(rows: list, columns: list) -> str:
 
 
 def build_excel_bytes(rows: list, columns: list) -> bytes:
-    """نفس أعمدة الشيت وبنفس الترتيب. كل نص يُحفظ كنص صريح حتى لا يتحول نص يبدأ بـ"=" لصيغة."""
+    """أعمدة output_columns وبنفس الترتيب. كل نص يُحفظ كنص صريح حتى لا يتحول نص يبدأ بـ"=" لصيغة."""
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.append(columns)
