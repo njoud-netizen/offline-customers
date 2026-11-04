@@ -108,6 +108,7 @@ class OutboundCall:
     row: dict  # بأعمدة google_sheets.columns بالضبط وبنفس الترتيب
     is_duplicate: bool = False
     needs_follow_up: bool = False  # العميل طلب التواصل لاحقًا
+    call_url: str = ""  # للعرض بالصفحة فقط: خارج row عمدًا فلا يصل للشيت ولا لملف Excel
 
 
 @dataclass
@@ -172,6 +173,12 @@ def load_export(file) -> pd.DataFrame:
     if missing:
         raise OutboundInputError(", ".join(missing))
     return df
+
+
+def _safe_call_url(raw) -> str:
+    """http/https فقط: القيمة من ملف خارجي وتنعرض كرابط، فأي مخطط ثاني (javascript:) ما يصير رابط."""
+    url = _clean(raw)
+    return url if re.match(r"https?://", url, re.IGNORECASE) else ""
 
 
 def detect_extra_columns(df: pd.DataFrame) -> ExtraColumns:
@@ -608,6 +615,7 @@ def build_result(
     columns = cfg["google_sheets"]["columns"]
     extras = detect_extra_columns(df)
     result = OutboundResult(extra_columns=extras)
+    url_column = next((c for c in extras.names if _column_key(c) == "callurl"), None)
 
     for _, src in df.iterrows():
         number, number_valid = format_number(src["To Number"])
@@ -673,6 +681,7 @@ def build_result(
             row=row,
             is_duplicate=_row_key(number, created) in ctx.existing_keys,
             needs_follow_up=needs_follow_up,
+            call_url=_safe_call_url(src[url_column]) if url_column else "",
         ))
     return result
 

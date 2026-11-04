@@ -318,6 +318,8 @@ TRANSLATIONS = {
     "outbound_col_how_heard": {"ar": "كيف عرف عنّا", "en": "How did you hear about us"},
     "outbound_col_remark": {"ar": "الملاحظة", "en": "Note"},
     "outbound_col_agent": {"ar": "Agent", "en": "Agent"},
+    "outbound_col_call_link": {"ar": "التسجيل", "en": "Recording"},
+    "outbound_listen_call": {"ar": "سماع المكالمة 🔗", "en": "Listen to call 🔗"},
     "outbound_alert_follow_up": {"ar": "مكالمات تحتاج متابعة: {count}", "en": "Calls that need follow-up: {count}"},
     "outbound_alert_follow_up_title": {"ar": "مكالمات تحتاج متابعة", "en": "Calls that need follow-up"},
     "outbound_extra_columns": {"ar": "الأعمدة الإضافية اللي لقيتها: {columns}", "en": "Extra columns found: {columns}"},

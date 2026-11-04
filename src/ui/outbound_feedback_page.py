@@ -48,9 +48,12 @@ _STEPS = ["upload", "process", "results"]
 _PREVIEW_KEY = "outbound_preview"
 _FLASH_KEY = "outbound_added_count"
 
+_CALL_LINK = "_call_url"  # مفتاح عرض فقط، ليس من أعمدة الشيت
+
 _PREVIEW_COLUMNS = [
     (COL_NAME, "outbound_col_name"),
     (COL_NUMBER, "outbound_col_number"),
+    (_CALL_LINK, "outbound_col_call_link"),
     (COL_DIRECTION, "outbound_col_direction"),
     (COL_CALL_STATUS, "outbound_col_call_status"),
     (COL_CHANNEL, "outbound_col_channel"),
@@ -65,11 +68,16 @@ _PREVIEW_COLUMNS = [
     (COL_AGENT, "outbound_col_agent"),
 ]
 _ISSUE_COLUMNS = [(COL_NAME, "outbound_col_name"), (COL_NUMBER, "outbound_col_number")]
+_FOLLOW_UP_COLUMNS = _ISSUE_COLUMNS + [(_CALL_LINK, "outbound_col_call_link")]
 _DISSATISFIED_COLUMNS = _ISSUE_COLUMNS + [(COL_COMPANY, "outbound_col_company"), (COL_REMARK, "outbound_col_remark")]
 
 
 def _icon_tile(name: str) -> str:
     return f'<span class="maz-kpi-icon-tile"><span class="material-symbols-outlined">{name}</span></span>'
+
+
+def _display_row(call) -> dict:
+    return {**call.row, _CALL_LINK: call.call_url}
 
 
 def _table_html(rows: list, columns: list, lang: str, wide: bool = False) -> str:
@@ -86,6 +94,11 @@ def _table_html(rows: list, columns: list, lang: str, wide: bool = False) -> str
             value = str(row.get(column, ""))
             if not value:
                 cells.append(f'<td{cell_style}><span class="maz-table-dash">—</span></td>')
+            elif column == _CALL_LINK:
+                cells.append(
+                    f'<td{cell_style}><a href="{html.escape(value)}" target="_blank" rel="noopener noreferrer">'
+                    f'{html.escape(t("outbound_listen_call", lang))}</a></td>'
+                )
             elif column in (COL_NUMBER, COL_DATE):
                 cells.append(f'<td{cell_style}><bdi dir="ltr" style="unicode-bidi:isolate;">{html.escape(value)}</bdi></td>')
             else:
@@ -237,10 +250,10 @@ def outbound_feedback_page() -> None:
         KPICardData(label=t("outbound_kpi_dissatisfied", lang), value=f"{count(COL_SATISFIED, DISSATISFIED):,}", icon=_icon_tile("thumb_down")),
     ])
 
-    follow_up_rows = [c.row for c in result.calls if c.needs_follow_up]
+    follow_up_rows = [_display_row(c) for c in result.calls if c.needs_follow_up]
     if follow_up_rows:
         st.warning(t("outbound_alert_follow_up", lang).format(count=len(follow_up_rows)))
-        _render_table_section("outbound_follow_up", t("outbound_alert_follow_up_title", lang), follow_up_rows, _ISSUE_COLUMNS, lang)
+        _render_table_section("outbound_follow_up", t("outbound_alert_follow_up_title", lang), follow_up_rows, _FOLLOW_UP_COLUMNS, lang)
 
     missing_how_rows = [r for r in all_rows if r[COL_CALL_STATUS] == STATUS_ANSWER and not r[COL_HOW_HEARD]]
     if missing_how_rows:
@@ -256,7 +269,8 @@ def outbound_feedback_page() -> None:
         st.info(t("outbound_info_duplicates", lang).format(count=result.duplicate_count))
 
     if new_rows:
-        _render_table_section("outbound_preview", t("outbound_preview_title", lang).format(count=len(new_rows)), new_rows, _PREVIEW_COLUMNS, lang, wide=True)
+        preview_rows = [_display_row(c) for c in result.calls if not c.is_duplicate]
+        _render_table_section("outbound_preview", t("outbound_preview_title", lang).format(count=len(new_rows)), preview_rows, _PREVIEW_COLUMNS, lang, wide=True)
     else:
         render_empty_state(t("outbound_nothing_to_add", lang))
 
