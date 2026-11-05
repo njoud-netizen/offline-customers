@@ -66,7 +66,7 @@ NOTE_MAX_CHARS = 120
 SHEET_PASTE = "للشيت"
 SHEET_REVIEW = "للمراجعة"
 REVIEW_COL_REASON = "ليش فاضي"
-REVIEW_COL_FOLLOW_UP = "يحتاج متابعة"
+REVIEW_COL_FOLLOW_UP = "تحتاج متابعة"
 REVIEW_COL_LINK = "رابط المكالمة"
 REVIEW_LINK_TEXT = "سماع المكالمة 🔗"
 REVIEW_WIDTHS = {COL_REMARK: 40, REVIEW_COL_REASON: 50, REVIEW_COL_FOLLOW_UP: 28, REVIEW_COL_LINK: 20}
@@ -452,9 +452,14 @@ def _customer_opinion(speech: "CallSpeech | None", src, cfg: dict) -> str:
 
 
 def _customer_hung_up(src, opinion: str, cfg: dict) -> bool:
-    """العميل قفل قبل ما يقول رأيه: هو اللي أنهى المكالمة، وحالتها ما تخلصت، وما قال رأي."""
+    """العميل قفل أول ما سمع إنها مكالمة تقييم: هو اللي أنهاها، وحالتها ما تخلصت، وما قال رأي ولا طلب شي
+    ("ألو" و"أيوة مناسب" مو طلب، فأقل من NOTE_MIN_REQUEST_WORDS كلمات ما تُحسب)."""
     ended_by_customer = _clean(src.get("End Call Initiator", "")).lower() == END_BY_CUSTOMER
-    return ended_by_customer and not opinion and _clean(src["Call Outcome"]).lower() in cfg["outbound_feedback"]["hang_up_outcomes"]
+    asked_for_something = len(_clean(src["Customer Request"]).split()) >= NOTE_MIN_REQUEST_WORDS
+    return (
+        ended_by_customer and not opinion and not asked_for_something
+        and _clean(src["Call Outcome"]).lower() in cfg["outbound_feedback"]["hang_up_outcomes"]
+    )
 
 
 def _extract_requested_time(text: str) -> str:
@@ -539,7 +544,9 @@ def _blank_reasons(row: dict, answered: bool, unmatched: list) -> list:
     if not row[COL_COMPANY] and not any(u["column"] == COL_COMPANY for u in unmatched):
         issues.append("الشركة مو مذكورة في Agent Name")
     if answered:
-        if not row[COL_HOW_HEARD]:
+        if not row[COL_SATISFIED]:
+            issues.append("طلب التواصل لاحقًا، فالرضا وكيف عرف عنّا فاضية")
+        elif not row[COL_HOW_HEARD]:
             issues.append("العميل ما ذكر كيف عرف عنّا")
     else:
         issues.append("ما رد، فالرضا وكيف عرف عنّا والملاحظة فاضية")
@@ -579,7 +586,8 @@ def build_result(
             request = _clean(src["Customer Request"])
             reason = _clean(src["Sentiment Reason"])
             opinion = _customer_opinion(speech, src, cfg)
-            satisfied = DISSATISFIED if opinion == DISSATISFIED else SATISFIED
+            # طلب التواصل لاحقًا: الرضا فاضي حتى لو قفل بعد طلبه، إلا لو اشتكى صراحة
+            satisfied = DISSATISFIED if opinion == DISSATISFIED else "" if contact_later else SATISFIED
             hung_up = not contact_later and _customer_hung_up(src, opinion, cfg)
             notes = []
             if satisfied == DISSATISFIED:
@@ -593,7 +601,7 @@ def build_result(
                 follow_up_note = NOTE_CALLBACK
                 notes.append(follow_up_note)
             remark = " | ".join(notes)
-            how_heard = "" if hung_up else _resolve_how_heard(src, extras, speech, cfg, _allowed_values(cfg, COL_HOW_HEARD), result.unmatched)
+            how_heard = "" if hung_up or contact_later else _resolve_how_heard(src, extras, speech, cfg, _allowed_values(cfg, COL_HOW_HEARD), result.unmatched)
             if not how_heard and satisfied == SATISFIED:
                 how_heard = HOW_HEARD_DEFAULT
             details_values = _allowed_values(cfg, COL_DETAILS)
