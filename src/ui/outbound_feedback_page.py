@@ -34,6 +34,7 @@ from .icon_button import icon_download_button
 
 _PREVIEW_KEY = "outbound_preview"
 _OPEN_CARD_KEY = "outbound_open_card"
+_DEFAULT_OPEN_CARD = "total"
 
 _CALL_LINK = "_call_url"  # مفتاح عرض فقط، ليس من أعمدة الشيت
 
@@ -96,6 +97,18 @@ div[class*="st-key-kpi_card_"][class*="_outbound_"] div[data-testid="stButton"] 
     color: #683EB5;
     font-size: 22px;
     line-height: 1;
+}
+/* theme.py يلبس أي زر داخل منطقة الرفع شكل "اختر ملف"، ومنها زرّي حذف الملف والإضافة الصغيرين فيركب النص
+   على أيقونتهم. هنا يرجعون أيقونات بدون خلفية، لمربع رفع هذي الصفحة فقط. */
+div.st-key-maz_card_outbound_upload [data-testid="stFileChips"] button {
+    background-color: transparent !important;
+}
+div.st-key-maz_card_outbound_upload [data-testid="stFileChips"] button::after {
+    content: none !important;
+}
+div.st-key-maz_card_outbound_upload [data-testid="stFileChips"] button [data-testid="stIconMaterial"] {
+    color: #683EB5 !important;
+    font-size: 20px !important;
 }
 </style>
 """
@@ -164,7 +177,7 @@ def _render_header(lang: str):
 
 def _load_preview(file_bytes: bytes, file_name: str, cfg: dict):
     """المعاينة تُحسب مرة واحدة لكل ملف: Streamlit يعيد تشغيل الصفحة مع كل ضغطة، وإعادة الترجمة
-    والتحليل كل مرة بطيئة بلا فائدة. ملف جديد يقفل أي قائمة مفتوحة من الملف السابق."""
+    والتحليل كل مرة بطيئة بلا فائدة. ملف جديد يرجّع قائمة "إجمالي المكالمات" مفتوحة."""
     digest = hashlib.md5(file_bytes).hexdigest()
     cached = st.session_state.get(_PREVIEW_KEY)
     if cached and cached["digest"] == digest:
@@ -174,7 +187,7 @@ def _load_preview(file_bytes: bytes, file_name: str, cfg: dict):
     df = load_export(buffer)
     result = build_result(df, cfg)
     st.session_state[_PREVIEW_KEY] = {"digest": digest, "result": result}
-    st.session_state.pop(_OPEN_CARD_KEY, None)
+    st.session_state[_OPEN_CARD_KEY] = _DEFAULT_OPEN_CARD
     return result
 
 
@@ -239,6 +252,7 @@ def outbound_feedback_page() -> None:
         st.markdown(f'<p class="maz-upload-hint">{t("outbound_file_only_hint", lang)}</p>', unsafe_allow_html=True)
 
     if uploaded_file is None:
+        st.session_state.pop(_PREVIEW_KEY, None)  # حتى إعادة رفع نفس الملف تُعامل كملف جديد
         render_footer(lang)
         return
 
