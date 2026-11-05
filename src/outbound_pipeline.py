@@ -58,6 +58,9 @@ AGENT_AI = "AI"  # عمود Agent بلا قائمة منسدلة بالشيت �
 
 NOTE_CALLBACK = "طلب إعادة الاتصال"
 NOTE_CONTACT_LATER = "طلب التواصل لاحقًا"
+NOTE_HUNG_UP = "العميل قفل المكالمة"
+HOW_HEARD_DEFAULT = "Store"
+END_BY_CUSTOMER = "user"
 NOTE_GENERIC_DISSATISFIED = "العميل غير راضٍ"
 NOTE_MAX_CHARS = 120
 SHEET_PASTE = "للشيت"
@@ -422,13 +425,6 @@ def _resolve_details(request: str, cfg: dict, values: list) -> str:
     return ""
 
 
-def _is_dissatisfied(sentiment: str, score_raw: str) -> bool:
-    if sentiment.lower() == "negative":
-        return True
-    score = pd.to_numeric(score_raw, errors="coerce")
-    return bool(pd.notna(score) and score <= 3)
-
-
 def _rating_from_text(text: str, cfg: dict) -> str:
     section = cfg["outbound_feedback"]
     if _mentions_affirmed(text, section["dissatisfied_signals"]):
@@ -447,20 +443,18 @@ def _rating_from_speech(speech: "CallSpeech | None", cfg: dict) -> str:
     return SATISFIED if _mentions_affirmed(answers, cfg["outbound_feedback"]["satisfied_answer_signals"]) else ""
 
 
-def _resolve_rating(speech: "CallSpeech | None", contact_later: bool, src, cfg: dict) -> str:
-    sentiment = _clean(src["Sentiment"])
+def _customer_opinion(speech: "CallSpeech | None", src, cfg: dict) -> str:
+    """رأي العميل من كلامه وCustomer Request فقط، بدون Sentiment أو Call Quality Score. الشكوى تغلب المدح."""
     spoken = _rating_from_speech(speech, cfg)
-    if contact_later:
-        # طلب التواصل لاحقًا: الرضا من الكلام فقط، ودرجة الجودة هنا ما تعني رأي العميل
-        return (
-            spoken
-            or _rating_from_text(_clean(src["Customer Request"]), cfg)
-            or _rating_from_text(_clean(src["Sentiment Reason"]), cfg)
-        )
-    if spoken:
-        # انطباع Negative صريح يغلب كلمات المدح: اعتبار عميل زعلان راضيًا أسوأ من العكس
-        return DISSATISFIED if sentiment.lower() == "negative" else spoken
-    return DISSATISFIED if _is_dissatisfied(sentiment, _clean(src["Call Quality Score"])) else SATISFIED
+    if spoken == DISSATISFIED:
+        return spoken
+    return _rating_from_text(_clean(src["Customer Request"]), cfg) or spoken
+
+
+def _customer_hung_up(src, opinion: str, cfg: dict) -> bool:
+    """العميل قفل قبل ما يقول رأيه: هو اللي أنهى المكالمة، وحالتها ما تخلصت، وما قال رأي."""
+    ended_by_customer = _clean(src.get("End Call Initiator", "")).lower() == END_BY_CUSTOMER
+    return ended_by_customer and not opinion and _clean(src["Call Outcome"]).lower() in cfg["outbound_feedback"]["hang_up_outcomes"]
 
 
 def _extract_requested_time(text: str) -> str:
@@ -545,8 +539,6 @@ def _blank_reasons(row: dict, answered: bool, unmatched: list) -> list:
     if not row[COL_COMPANY] and not any(u["column"] == COL_COMPANY for u in unmatched):
         issues.append("الشركة مو مذكورة في Agent Name")
     if answered:
-        if not row[COL_SATISFIED]:
-            issues.append("طلب التواصل لاحقًا وما ذكر تقييم")
         if not row[COL_HOW_HEARD]:
             issues.append("العميل ما ذكر كيف عرف عنّا")
     else:
@@ -586,18 +578,24 @@ def build_result(
         if answered:
             request = _clean(src["Customer Request"])
             reason = _clean(src["Sentiment Reason"])
-            satisfied = _resolve_rating(speech, contact_later, src, cfg)
+            opinion = _customer_opinion(speech, src, cfg)
+            satisfied = DISSATISFIED if opinion == DISSATISFIED else SATISFIED
+            hung_up = not contact_later and _customer_hung_up(src, opinion, cfg)
             notes = []
             if satisfied == DISSATISFIED:
                 notes.append(_dissatisfied_reason(speech, request, reason, cfg, translate))
             if contact_later:
                 follow_up_note = f"{NOTE_CONTACT_LATER} ({requested_time})" if requested_time else NOTE_CONTACT_LATER
                 notes.append(follow_up_note)
+            elif hung_up:
+                notes.append(NOTE_HUNG_UP)
             elif follow_up:
                 follow_up_note = NOTE_CALLBACK
                 notes.append(follow_up_note)
             remark = " | ".join(notes)
-            how_heard = _resolve_how_heard(src, extras, speech, cfg, _allowed_values(cfg, COL_HOW_HEARD), result.unmatched)
+            how_heard = "" if hung_up else _resolve_how_heard(src, extras, speech, cfg, _allowed_values(cfg, COL_HOW_HEARD), result.unmatched)
+            if not how_heard and satisfied == SATISFIED:
+                how_heard = HOW_HEARD_DEFAULT
             details_values = _allowed_values(cfg, COL_DETAILS)
             spoken_text = "\n".join([*speech.customer, *speech.confirmed]) if speech else ""
             details = _resolve_details(spoken_text, cfg, details_values) or _resolve_details(request, cfg, details_values)
