@@ -601,7 +601,7 @@ def build_result(
                 follow_up_note = NOTE_CALLBACK
                 notes.append(follow_up_note)
             remark = " | ".join(notes)
-            how_heard = "" if hung_up or contact_later else _resolve_how_heard(src, extras, speech, cfg, _allowed_values(cfg, COL_HOW_HEARD), result.unmatched)
+            how_heard = "" if contact_later else _resolve_how_heard(src, extras, speech, cfg, _allowed_values(cfg, COL_HOW_HEARD), result.unmatched)
             if not how_heard and satisfied == SATISFIED:
                 how_heard = HOW_HEARD_DEFAULT
             details_values = _allowed_values(cfg, COL_DETAILS)
